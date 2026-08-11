@@ -1,0 +1,19 @@
+spring:
+  application:
+    name:
+      ZoraShop-MiniShopeeE-CommercePlatform
+  datasource:
+    url: jdbc:postgresql://localhost:5432/zorashop_db
+    username: zorashop_user
+    password: 123456
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: on
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
