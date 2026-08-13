@@ -115,7 +115,6 @@ public class UserServiceImpl implements UserService {
         user.setAvatarUrl(request.getAvatarUrl());
         userRepository.save(user);
     }
-
     @Override
     public LoginResponse loginUser(LoginRequest loginRequest) {
 
@@ -132,14 +131,28 @@ public class UserServiceImpl implements UserService {
                     (UserDetails) authentication.getPrincipal();
 
             String token = jwtTokenProvider.generateToken(userDetails);
-
+            String refreshToken = jwtTokenProvider.generateRefreshToken(userDetails);
             return new LoginResponse(
                     token,
+                    refreshToken,
                     userDetails.getUsername()
             );
 
         } catch (BadCredentialsException e) {
             throw new UnauthorizedException("Wrong email or password");
+        }
+    }
+
+    @Override
+    public LoginResponse refreshToken(String refreshToken) {
+        try{
+            String email = jwtTokenProvider.getEmailFromRefreshToken(refreshToken);
+            UserDetails userDetails = (UserDetails) userDetailsService.loadUserByUsername(email);
+            String  token = jwtTokenProvider.generateToken(userDetails);
+            LoginResponse response = new LoginResponse(token, refreshToken, userDetails.getUsername());
+            return response;
+        }catch (Exception e){
+            throw new UnauthorizedException("Refresh token is invalid");
         }
     }
 

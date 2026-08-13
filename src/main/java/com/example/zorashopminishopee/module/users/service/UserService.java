@@ -14,4 +14,5 @@ public interface UserService {
     void changePassword(Long userId, ChangePasswordRequest request);
     void updateProfile(Long id, UpdateProfileRequest request);
     LoginResponse loginUser(LoginRequest loginRequest);
+    LoginResponse refreshToken(String refreshToken);
 }

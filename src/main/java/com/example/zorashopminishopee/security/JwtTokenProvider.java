@@ -31,6 +31,24 @@ public class JwtTokenProvider {
     private SecretKey getSecretKey() {
         return Keys.hmacShaKeyFor(secret.getBytes());
     }
+    public String generateRefreshToken(UserDetails userDetails) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + refreshExpiration );
+        return Jwts.builder()
+                .issuedAt(now)
+                .signWith(getSecretKey())
+                .expiration(expiryDate)
+                .subject(userDetails.getUsername())
+                .compact();
+    }
+    public String getEmailFromRefreshToken(String refreshToken) {
+        return  Jwts.parser()
+                .verifyWith(getSecretKey())
+                .build()
+                .parseClaimsJws(refreshToken)
+                .getPayload()
+                .getSubject();
+    }
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = getClaimsUser(userDetails);
         Date now = new Date();
@@ -66,6 +84,7 @@ public class JwtTokenProvider {
     }
     public String getEmailFromToken(String token) {
         return Jwts.parser()
+                .verifyWith(getSecretKey())
                 .build()
                 .parseClaimsJws(token)
                 .getPayload()
