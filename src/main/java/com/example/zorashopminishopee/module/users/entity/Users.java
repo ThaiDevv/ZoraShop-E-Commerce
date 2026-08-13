@@ -26,12 +26,14 @@ public class Users extends BaseEntity {
     @Column(name = "phone", unique = true, nullable = false)
     private String phone;
 
+    @Builder.Default
     @Column(name = "avatar_url")
-    private String avatarUrl;
+    private String avatarUrl = "";
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
-    private UserRole role;
+    private UserRole role = UserRole.BUYER;
 
     @Builder.Default
     @Column(name = "is_active", nullable = false)

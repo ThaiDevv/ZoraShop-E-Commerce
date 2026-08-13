@@ -17,3 +17,7 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+jwt:
+  secret: "Tranvanthai26@DayLaSecretCuaJwtDungLayCuaToi"
+  access-expiration: ${JWT_ACCESS_EXPIRATION:86400000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
