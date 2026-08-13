@@ -4,15 +4,25 @@ import com.example.zorashopminishopee.common.exception.DuplicateResourceExceptio
 import com.example.zorashopminishopee.common.exception.ResourceNotFoundException;
 import com.example.zorashopminishopee.common.exception.UnauthorizedException;
 import com.example.zorashopminishopee.module.users.dto.request.ChangePasswordRequest;
+import com.example.zorashopminishopee.module.users.dto.request.LoginRequest;
 import com.example.zorashopminishopee.module.users.dto.request.RegisterRequest;
 import com.example.zorashopminishopee.module.users.dto.request.UpdateProfileRequest;
+import com.example.zorashopminishopee.module.users.dto.response.LoginResponse;
 import com.example.zorashopminishopee.module.users.dto.response.RegisterResponse;
 import com.example.zorashopminishopee.module.users.dto.response.UserResponse;
 import com.example.zorashopminishopee.module.users.entity.Users;
 import com.example.zorashopminishopee.module.users.enums.UserRole;
 import com.example.zorashopminishopee.module.users.repository.UserRepository;
 import com.example.zorashopminishopee.module.users.service.UserService;
+import com.example.zorashopminishopee.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +33,9 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
+    private final UserDetailsService userDetailsService;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Override
     @Transactional
@@ -102,4 +115,32 @@ public class UserServiceImpl implements UserService {
         user.setAvatarUrl(request.getAvatarUrl());
         userRepository.save(user);
     }
+
+    @Override
+    public LoginResponse loginUser(LoginRequest loginRequest) {
+
+        try {
+            Authentication authentication =
+                    authenticationManager.authenticate(
+                            new UsernamePasswordAuthenticationToken(
+                                    loginRequest.email(),
+                                    loginRequest.password()
+                            )
+                    );
+
+            UserDetails userDetails =
+                    (UserDetails) authentication.getPrincipal();
+
+            String token = jwtTokenProvider.generateToken(userDetails);
+
+            return new LoginResponse(
+                    token,
+                    userDetails.getUsername()
+            );
+
+        } catch (BadCredentialsException e) {
+            throw new UnauthorizedException("Wrong email or password");
+        }
+    }
+
 }
