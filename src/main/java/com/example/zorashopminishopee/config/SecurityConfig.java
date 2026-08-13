@@ -27,7 +27,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
-    public SecurityFilterChain springSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.cors(Customizer.withDefaults());
         http.authorizeHttpRequests(authorizeRequests -> authorizeRequests.requestMatchers(
                 "/api/v1/auth/register",
