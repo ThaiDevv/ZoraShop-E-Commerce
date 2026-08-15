@@ -15,7 +15,6 @@ import com.example.zorashopminishopee.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -75,10 +74,29 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public UserResponse getUserProfileByEmail(String email) {
+        Users user = userRepository.findByEmail(email);
+        if (user == null) {
+            throw new ResourceNotFoundException("User not found with email: " + email);
+        }
+        return UserResponse.builder()
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .avatarUrl(user.getAvatarUrl())
+                .isActive(user.getIsActive())
+                .role(user.getRole())
+                .build();
+    }
+
+    @Override
     @Transactional
-    public void changePassword(Long userId, ChangePasswordRequest request) {
-        Users user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+    public Boolean changePassword(String email, ChangePasswordRequest request) {
+        Users user = userRepository.findByEmail(email);
+        if (user == null) {
+            throw new ResourceNotFoundException("User not found");
+        }
 
         if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
             throw new UnauthorizedException("Old password doesn't match");
@@ -86,19 +104,15 @@ public class UserServiceImpl implements UserService {
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+        return true;
     }
 
     @Override
     @Transactional
-    public void updateProfile(Long userId, UpdateProfileRequest request) {
-        Users user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-
-        if (request.getEmail() != null && !request.getEmail().equals(user.getEmail())) {
-            if (userRepository.existsByEmail(request.getEmail())) {
-                throw new DuplicateResourceException("Email already exists");
-            }
-            user.setEmail(request.getEmail());
+    public UserResponse updateProfile(String email, UpdateProfileRequest request) {
+        Users user = userRepository.findByEmail(email);
+        if (user == null) {
+            throw new ResourceNotFoundException("User not found");
         }
 
         if (request.getPhone() != null && !request.getPhone().equals(user.getPhone())) {
@@ -111,24 +125,32 @@ public class UserServiceImpl implements UserService {
         user.setFullName(request.getFullName());
         user.setAvatarUrl(request.getAvatarUrl());
         userRepository.save(user);
+
+        return UserResponse.builder()
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .avatarUrl(user.getAvatarUrl())
+                .isActive(user.getIsActive())
+                .role(user.getRole())
+                .build();
     }
+
     @Override
     public LoginResponse loginUser(LoginRequest loginRequest) {
-
         try {
-            Authentication authentication =
-                    authenticationManager.authenticate(
-                            new UsernamePasswordAuthenticationToken(
-                                    loginRequest.email(),
-                                    loginRequest.password()
-                            )
-                    );
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            loginRequest.email(),
+                            loginRequest.password()
+                    )
+            );
 
-            UserDetails userDetails =
-                    (UserDetails) authentication.getPrincipal();
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
 
             String token = jwtTokenProvider.generateToken(userDetails);
             String refreshToken = jwtTokenProvider.generateRefreshToken(userDetails);
+
             return new LoginResponse(
                     token,
                     refreshToken,
@@ -142,15 +164,25 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public LoginResponse refreshToken(RefreshTokenRequest refreshToken) {
-        try{
+        try {
             String email = jwtTokenProvider.getEmailFromRefreshToken(refreshToken.getRefreshToken());
-            UserDetails userDetails = (UserDetails) userDetailsService.loadUserByUsername(email);
-            String  token = jwtTokenProvider.generateToken(userDetails);
-            LoginResponse response = new LoginResponse(token, refreshToken.getRefreshToken(), userDetails.getUsername());
-            return response;
-        }catch (Exception e){
+            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+            String token = jwtTokenProvider.generateToken(userDetails);
+            return new LoginResponse(token, refreshToken.getRefreshToken(), userDetails.getUsername());
+        } catch (Exception e) {
             throw new UnauthorizedException("Refresh token is invalid");
         }
     }
 
+    @Override
+    @Transactional
+    public String uploadAvatar(String email, String url) {
+        Users user = userRepository.findByEmail(email);
+        if (user == null) {
+            throw new ResourceNotFoundException("User not found");
+        }
+        user.setAvatarUrl(url);
+        userRepository.save(user);
+        return url;
+    }
 }

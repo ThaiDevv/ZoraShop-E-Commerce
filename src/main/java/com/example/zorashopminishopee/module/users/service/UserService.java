@@ -8,8 +8,10 @@ import com.example.zorashopminishopee.module.users.dto.response.UserResponse;
 public interface UserService {
     RegisterResponse registerUser(RegisterRequest registerRequest);
     UserResponse getUserProfile(Long userId);
-    void changePassword(Long userId, ChangePasswordRequest request);
-    void updateProfile(Long id, UpdateProfileRequest request);
+    UserResponse getUserProfileByEmail(String email);
+    Boolean changePassword(String email, ChangePasswordRequest request);
+    UserResponse updateProfile(String email, UpdateProfileRequest request);
     LoginResponse loginUser(LoginRequest loginRequest);
     LoginResponse refreshToken(RefreshTokenRequest refreshToken);
+    String uploadAvatar(String email, String url);
 }
