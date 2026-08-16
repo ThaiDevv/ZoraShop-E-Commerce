@@ -25,6 +25,15 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(AddressLimitExceededException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleAddressLimitExceeded(AddressLimitExceededException ex) {
+        log.warn("Address limit exceeded: {}", ex.getMessage());
+        return ErrorResponse.of(HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                ex.getMessage());
+    }
+
     @ExceptionHandler(DuplicateResourceException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleDuplicate(DuplicateResourceException ex) {

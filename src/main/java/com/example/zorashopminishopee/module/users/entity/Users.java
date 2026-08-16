@@ -5,6 +5,8 @@ import com.example.zorashopminishopee.module.users.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.List;
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -38,4 +40,11 @@ public class Users extends BaseEntity {
     @Builder.Default
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
+
+    @OneToMany(
+            mappedBy = "user",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private List<Address> addresses;
 }

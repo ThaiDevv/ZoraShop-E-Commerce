@@ -1,0 +1,27 @@
+meta {
+  name: 3. Update Address
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/api/v1/users/me/addresses/{{addressId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "fullName": "Nguyen Van A (Cập nhật)",
+    "phone": "0987654321",
+    "street": "456 Đường Nguyen Hue",
+    "ward": "Phường Bến Nghé",
+    "district": "Quận 1",
+    "city": "TP. Hồ Chí Minh",
+    "isDefault": true
+  }
+}
