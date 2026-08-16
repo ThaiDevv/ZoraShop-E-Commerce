@@ -1,0 +1,28 @@
+meta {
+  name: 3. Update Shop
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/api/v1/shops/{{shopId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiUk9MRV9CVVlFUiIsImVtYWlsIjoiYnV5ZXJAem9yYXNob3AuY29tIiwic3ViIjoiYnV5ZXJAem9yYXNob3AuY29tIiwiaWF0IjoxNzg2ODkxMzI4LCJleHAiOjE3ODY5Nzc3Mjh9.YbueZMH2uyR6cYPqsKTt5_6evDJG4jcQlF1yMnVHi84
+}
+
+body:json {
+  {
+    "name": "Shop Official Vietnam (Đã Cập Nhật)",
+    "description": "Gian hàng uy tín số 1 Việt Nam",
+    "logoUrl": "https://example.com/logo.png",
+    "bannerUrl": "https://example.com/banner.png"
+  }
+}
+
+vars:pre-request {
+  shopId: 1
+}

@@ -1,0 +1,28 @@
+meta {
+  name: 1. Create Shop
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/shops
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiUk9MRV9CVVlFUiIsImVtYWlsIjoiYnV5ZXJAem9yYXNob3AuY29tIiwic3ViIjoiYnV5ZXJAem9yYXNob3AuY29tIiwiaWF0IjoxNzg2ODkxMzI4LCJleHAiOjE3ODY5Nzc3Mjh9.YbueZMH2uyR6cYPqsKTt5_6evDJG4jcQlF1yMnVHi84
+}
+
+body:json {
+  {
+    "name": "Shop Official Vietnam",
+    "description": "Gian hàng chính hãng ZoraShop"
+  }
+}
+
+script:post-response {
+  if (res.body && res.body.data && res.body.data.id) {
+    bru.setVar("shopId", res.body.data.id);
+  }
+}

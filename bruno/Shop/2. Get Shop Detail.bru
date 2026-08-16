@@ -1,0 +1,19 @@
+meta {
+  name: 2. Get Shop Detail
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/shops/{{shopId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiUk9MRV9CVVlFUiIsImVtYWlsIjoiYnV5ZXJAem9yYXNob3AuY29tIiwic3ViIjoiYnV5ZXJAem9yYXNob3AuY29tIiwiaWF0IjoxNzg2ODkxMzI4LCJleHAiOjE3ODY5Nzc3Mjh9.YbueZMH2uyR6cYPqsKTt5_6evDJG4jcQlF1yMnVHi84
+}
+
+vars:pre-request {
+  shopId: 1
+}

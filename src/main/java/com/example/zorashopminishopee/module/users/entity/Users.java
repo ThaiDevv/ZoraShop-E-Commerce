@@ -47,4 +47,7 @@ public class Users extends BaseEntity {
             orphanRemoval = true
     )
     private List<Address> addresses;
+
+    @OneToOne(mappedBy = "user")
+    private Shops shops;
 }

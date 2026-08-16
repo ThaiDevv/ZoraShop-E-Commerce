@@ -50,7 +50,7 @@ public class AddressController {
             @PathVariable Long addressId
     ) {
         addressService.deleteAddress(authentication.getName(), addressId);
-        return ResponseEntity.ok(ApiResponse.success("Address deleted successfully", null));
+        return ResponseEntity.ok(ApiResponse.success());
     }
 
     @PutMapping("/addresses/{addressId}/default")
