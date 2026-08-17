@@ -60,12 +60,7 @@ public class AddressServiceImpl implements AddressService {
     @Override
     @Transactional(readOnly = true)
     public List<AddressResponse> getAddresses(String email) {
-        Users user = userRepository.findByEmail(email);
-        if (user == null) {
-            throw new ResourceNotFoundException("User not found");
-        }
-
-        return user.getAddresses().stream()
+        return addressRepository.findAllByUserEmail(email).stream()
                 .map(this::mapToResponse)
                 .toList();
     }
@@ -107,17 +102,11 @@ public class AddressServiceImpl implements AddressService {
     @Override
     @Transactional
     public void deleteAddress(String email, Long addressId) {
-        Users user = userRepository.findByEmail(email);
-        if (user == null) {
-            throw new ResourceNotFoundException("User not found");
-        }
-
         Address address = addressRepository.findByIdAndUserEmail(addressId, email)
                 .orElseThrow(() -> new ResourceNotFoundException("Address not found"));
-
-        user.getAddresses().remove(address);
         addressRepository.delete(address);
     }
+
 
     @Override
     @Transactional(readOnly = true)
