@@ -13,6 +13,9 @@ import com.example.zorashopminishopee.module.users.repository.UserRepository;
 import com.example.zorashopminishopee.module.users.service.UserService;
 import com.example.zorashopminishopee.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -22,6 +25,9 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -184,5 +190,41 @@ public class UserServiceImpl implements UserService {
         user.setAvatarUrl(url);
         userRepository.save(user);
         return url;
+    }
+
+    @Override
+    public Page<UserResponse> getAllUsers(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Users> users = userRepository.findAll(pageable);
+        Page<UserResponse> userResponseList = users
+                .map(
+                        user ->  UserResponse.builder()
+                                .fullName(user.getFullName())
+                                .email(user.getEmail())
+                                .phone(user.getPhone())
+                                .avatarUrl(user.getAvatarUrl())
+                                .isActive(user.getIsActive())
+                                .role(user.getRole())
+                                .build()
+                );
+        return userResponseList;
+    }
+
+    @Override
+    @Transactional
+    public UserResponse changeActive(String email) {
+        Users user = userRepository.findByEmail(email);
+        if (user == null) {
+            throw new ResourceNotFoundException("User not found");
+        }
+        user.setIsActive(!user.getIsActive());
+        return UserResponse.builder()
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .avatarUrl(user.getAvatarUrl())
+                .isActive(user.getIsActive())
+                .role(user.getRole())
+                .build();
     }
 }

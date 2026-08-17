@@ -1,0 +1,15 @@
+meta {
+  name: 2. Toggle User Active Status
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/admin/users/buyer@zorashop.com
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
