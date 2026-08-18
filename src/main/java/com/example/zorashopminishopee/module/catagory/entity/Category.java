@@ -14,6 +14,9 @@ import java.util.List;
 @Entity
 @Table(name = "categories")
 public class Category extends BaseEntity {
+    @Column(name = "parent_id", insertable = false, updatable = false)
+    private Long parentId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private Category parent;

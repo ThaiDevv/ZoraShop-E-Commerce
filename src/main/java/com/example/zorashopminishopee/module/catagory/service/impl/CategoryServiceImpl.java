@@ -33,7 +33,7 @@ public class CategoryServiceImpl implements CategoryService {
         List<CategoryResponse> rootCategories = new ArrayList<>();
         for (Category cat : categories) {
             CategoryResponse currentDto = map.get(cat.getId());
-            Long parentId = cat.getParent() != null ? cat.getParent().getId() : null;
+            Long parentId = cat.getParentId();
             if (parentId == null) {
                 // Là danh mục Cấp 1 -> Đưa vào danh sách gốc
                 rootCategories.add(currentDto);
