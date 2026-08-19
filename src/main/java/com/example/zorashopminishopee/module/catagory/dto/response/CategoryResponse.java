@@ -1,4 +1,4 @@
-package com.example.zorashopminishopee.module.catagory.dto;
+package com.example.zorashopminishopee.module.catagory.dto.response;
 
 import lombok.Builder;
 

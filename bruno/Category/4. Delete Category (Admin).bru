@@ -1,0 +1,15 @@
+meta {
+  name: 4. Delete Category (Admin)
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/admin/categories/14
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

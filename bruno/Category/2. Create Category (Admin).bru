@@ -1,0 +1,25 @@
+meta {
+  name: 2. Create Category (Admin)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/admin/categories
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "parentId": null,
+    "name": "Giày Dép Nam",
+    "slug": "giay-dep-nam",
+    "iconUrl": "https://api.dicebear.com/7.x/icons/svg?seed=shoes",
+    "sortOrder": 4
+  }
+}

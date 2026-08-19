@@ -1,0 +1,25 @@
+meta {
+  name: 3. Update Category (Admin)
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/api/v1/admin/categories/1
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "parentId": null,
+    "name": "Thiết Bị Điện Tử & Công Nghệ",
+    "slug": "thiet-bi-dien-tu-cong-nghe",
+    "iconUrl": "https://api.dicebear.com/7.x/icons/svg?seed=tech",
+    "sortOrder": 1
+  }
+}
