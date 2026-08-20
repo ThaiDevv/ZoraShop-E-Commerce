@@ -15,6 +15,8 @@ import java.util.Set;
 @Entity
 @Table(name = "Shops")
 public class Shops extends BaseEntity {
+
+
     @OneToOne(cascade = {
             CascadeType.PERSIST,
             CascadeType.MERGE
