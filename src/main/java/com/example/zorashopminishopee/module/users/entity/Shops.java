@@ -1,8 +1,11 @@
 package com.example.zorashopminishopee.module.users.entity;
 
 import com.example.zorashopminishopee.common.base.BaseEntity;
+import com.example.zorashopminishopee.module.product.entity.Product;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.Set;
 
 @Setter
 @Getter
@@ -18,6 +21,14 @@ public class Shops extends BaseEntity {
     })
     @JoinColumn(name = "seller_id")
     private Users user;
+
+    @OneToMany(
+            mappedBy = "shop",
+            cascade = CascadeType.ALL,
+            fetch = FetchType.LAZY,
+            orphanRemoval = true
+    )
+    private Set<Product> products ;
 
     @Column(name = "name")
     private String name;

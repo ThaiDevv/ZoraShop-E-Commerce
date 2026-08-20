@@ -1,10 +1,13 @@
 package com.example.zorashopminishopee.module.catagory.entity;
 
 import com.example.zorashopminishopee.common.base.BaseEntity;
+import com.example.zorashopminishopee.module.product.entity.Product;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Setter
 @Getter
@@ -20,6 +23,10 @@ public class Category extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private Category parent;
+
+    @OneToMany(mappedBy = "category")
+    @Builder.Default
+    private Set<Product> products = new HashSet<>();
 
     @OneToMany(mappedBy = "parent")
     private List<Category> children;
