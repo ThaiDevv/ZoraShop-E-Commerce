@@ -2,27 +2,32 @@ package com.example.zorashopminishopee.module.product.service.impl;
 
 import com.example.zorashopminishopee.common.exception.BadRequestException;
 import com.example.zorashopminishopee.common.exception.DuplicateResourceException;
-import com.example.zorashopminishopee.common.exception.ForbiddenException;
 import com.example.zorashopminishopee.common.exception.ResourceNotFoundException;
 import com.example.zorashopminishopee.module.catagory.entity.Category;
 import com.example.zorashopminishopee.module.catagory.repository.CategoryRepository;
 import com.example.zorashopminishopee.module.product.dto.request.CreateProductImageRequest;
 import com.example.zorashopminishopee.module.product.dto.request.CreateProductRequest;
 import com.example.zorashopminishopee.module.product.dto.request.CreateProductVariantRequest;
+import com.example.zorashopminishopee.module.product.dto.request.FilterSortRequest;
 import com.example.zorashopminishopee.module.product.dto.response.*;
+import com.example.zorashopminishopee.module.product.emun.ProductSortBy;
+import com.example.zorashopminishopee.module.product.emun.ProductSortDir;
 import com.example.zorashopminishopee.module.product.entity.Product;
 import com.example.zorashopminishopee.module.product.entity.ProductImage;
 import com.example.zorashopminishopee.module.product.entity.ProductVariant;
 import com.example.zorashopminishopee.module.product.repository.ProductRepository;
 import com.example.zorashopminishopee.module.product.repository.ProductVariantRepository;
 import com.example.zorashopminishopee.module.product.service.ProductService;
+import com.example.zorashopminishopee.module.product.specification.ProductSpecification;
 import com.example.zorashopminishopee.module.users.entity.Shops;
-import com.example.zorashopminishopee.module.users.entity.Users;
-import com.example.zorashopminishopee.module.users.enums.UserRole;
 import com.example.zorashopminishopee.module.users.repository.ShopRepository;
-import com.example.zorashopminishopee.module.users.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -173,6 +178,48 @@ public class ProductServiceImpl implements ProductService {
         }
         productRepository.save(product);
         return mapToResponse(product);
+    }
+    private String getPrimaryImageUrl(List<ProductImage> images) {
+        if (images == null || images.isEmpty()) {
+            return null;
+        }
+        return images.stream()
+                .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
+                .map(ProductImage::getImageUrl)
+                .findFirst()
+                .orElse(images.get(0).getImageUrl());
+    }
+
+    public ProductSummaryResponse mapToProductSummaryResponse(Product product) {
+        return new ProductSummaryResponse(
+                product.getId(),
+                product.getName(),
+                product.getSlug(),
+                product.getPrice(),
+                product.getOriginalPrice(),
+               getPrimaryImageUrl(product.getImages()),
+                product.getRatingAvg(),
+                product.getRatingCount(),
+                product.getSoldCount(),
+                product.getShop().getName()
+        );
+    }
+    @Override
+    public Page<ProductSummaryResponse> getAllProducts(FilterSortRequest request, int page, int size) {
+        String fieldName = ProductSortBy.getValidFieldName(request.sortBy() != null ? request.sortBy().name() : null);
+
+        Sort.Direction direction = (request.sortDir() == ProductSortDir.ASC)
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, fieldName));
+        Specification<Product> spec = Specification
+                .where(ProductSpecification.keywordContains(request.keyword()))
+                .and(ProductSpecification.hasCategory(request.categoryId()))
+                .and(ProductSpecification.priceBetween(request.minPrice(), request.maxPrice()))
+                .and((root, query, cb)
+                        -> cb.equal(root.get("status"), "ACTIVE"));
+        Page<Product> products = productRepository.findAll(spec, pageable);
+        return products.map(this::mapToProductSummaryResponse);
     }
 }
 
