@@ -1,0 +1,53 @@
+meta {
+  name: 3. Create Product (Seller)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/seller/products
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "categoryId": 9,
+    "name": "Áo Phông Nam Local Brand Cotton Premium",
+    "description": "Áo phông nam cao cấp thoáng mát 100% cotton",
+    "price": 150000.00,
+    "originalPrice": 200000.00,
+    "images": [
+      {
+        "imageUrl": "https://picsum.photos/400/400?random=1",
+        "sortOrder": 1,
+        "isPrimary": true
+      },
+      {
+        "imageUrl": "https://picsum.photos/400/400?random=2",
+        "sortOrder": 2,
+        "isPrimary": false
+      }
+    ],
+    "variants": [
+      {
+        "variantName": "Size M - Màu Đen",
+        "sku": "AO-BLACK-M-01",
+        "price": 150000.00,
+        "stock": 50,
+        "imageUrl": "https://picsum.photos/400/400?random=1"
+      },
+      {
+        "variantName": "Size L - Màu Đen",
+        "sku": "AO-BLACK-L-01",
+        "price": 150000.00,
+        "stock": 30,
+        "imageUrl": "https://picsum.photos/400/400?random=1"
+      }
+    ]
+  }
+}

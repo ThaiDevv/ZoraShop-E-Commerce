@@ -2,6 +2,7 @@ package com.example.zorashopminishopee.module.product.controller;
 
 import com.example.zorashopminishopee.common.dto.ApiResponse;
 import com.example.zorashopminishopee.module.product.dto.request.CreateProductRequest;
+import com.example.zorashopminishopee.module.product.dto.request.UpdateProductRequest;
 import com.example.zorashopminishopee.module.product.dto.response.ProductResponse;
 import com.example.zorashopminishopee.module.product.service.ProductService;
 import jakarta.validation.Valid;
@@ -9,10 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/seller/products")
@@ -24,5 +22,15 @@ public class SellerProductController {
     public ResponseEntity<ApiResponse<ProductResponse>> createProduct(Authentication authentication,@Valid @RequestBody CreateProductRequest request){
         ProductResponse productResponse = productService.createProduct(authentication.getName(), request);
         return ResponseEntity.ok(ApiResponse.success(productResponse));
+    }
+    @PutMapping("/{slug}")
+    public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(Authentication authentication, @PathVariable String slug, @Valid @RequestBody UpdateProductRequest request){
+        ProductResponse productResponse = productService.updateProduct(authentication.getName(), slug, request);
+        return ResponseEntity.ok(ApiResponse.success(productResponse));
+    }
+    @DeleteMapping("/{slug}")
+    public ResponseEntity<ApiResponse<Void>> deleteProduct(Authentication authentication, @PathVariable String slug){
+        productService.deleteProduct(authentication.getName(), slug);
+        return ResponseEntity.ok(ApiResponse.success());
     }
 }

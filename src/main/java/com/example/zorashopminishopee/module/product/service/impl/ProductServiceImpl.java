@@ -2,19 +2,18 @@ package com.example.zorashopminishopee.module.product.service.impl;
 
 import com.example.zorashopminishopee.common.exception.BadRequestException;
 import com.example.zorashopminishopee.common.exception.DuplicateResourceException;
+import com.example.zorashopminishopee.common.exception.ForbiddenException;
 import com.example.zorashopminishopee.common.exception.ResourceNotFoundException;
 import com.example.zorashopminishopee.module.catagory.entity.Category;
 import com.example.zorashopminishopee.module.catagory.repository.CategoryRepository;
-import com.example.zorashopminishopee.module.product.dto.request.CreateProductImageRequest;
-import com.example.zorashopminishopee.module.product.dto.request.CreateProductRequest;
-import com.example.zorashopminishopee.module.product.dto.request.CreateProductVariantRequest;
-import com.example.zorashopminishopee.module.product.dto.request.FilterSortRequest;
+import com.example.zorashopminishopee.module.product.dto.request.*;
 import com.example.zorashopminishopee.module.product.dto.response.*;
 import com.example.zorashopminishopee.module.product.emun.ProductSortBy;
 import com.example.zorashopminishopee.module.product.emun.ProductSortDir;
 import com.example.zorashopminishopee.module.product.entity.Product;
 import com.example.zorashopminishopee.module.product.entity.ProductImage;
 import com.example.zorashopminishopee.module.product.entity.ProductVariant;
+import com.example.zorashopminishopee.module.product.repository.ProductImageRepository;
 import com.example.zorashopminishopee.module.product.repository.ProductRepository;
 import com.example.zorashopminishopee.module.product.repository.ProductVariantRepository;
 import com.example.zorashopminishopee.module.product.service.ProductService;
@@ -23,6 +22,7 @@ import com.example.zorashopminishopee.module.users.entity.Shops;
 import com.example.zorashopminishopee.module.users.repository.ShopRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -41,6 +41,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final ShopRepository shopRepository;
+    private final ProductImageRepository productImageRepository;
     private final ProductVariantRepository productVariantRepository;
     public String createSlug(String name) {
         String slug = name.replaceAll("Đ", "D").replaceAll("đ", "d");
@@ -221,5 +222,157 @@ public class ProductServiceImpl implements ProductService {
         Page<Product> products = productRepository.findAll(spec, pageable);
         return products.map(this::mapToProductSummaryResponse);
     }
+
+    @Override
+    @Transactional
+    public ProductResponse getProduct(String slug) {
+        Product product = productRepository.findBySlug(slug).orElseThrow(
+                () -> new ResourceNotFoundException("Product not found!")
+        );
+        long currentViews = product.getViewCount() != null ? product.getViewCount() : 0L;
+        product.setViewCount(currentViews + 1);
+        productRepository.save(product);
+        return mapToResponse(product);
+    }
+
+    @Override
+    @Transactional
+    public ProductResponse updateProduct(String email, String slug, UpdateProductRequest request) {
+        Shops shop = shopRepository.findByUser_Email(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Shop not found with email: " + email));
+
+        Product product = productRepository.findBySlug(slug)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with slug: " + slug));
+
+        if (!product.getShop().getId().equals(shop.getId())) {
+            throw new ForbiddenException("Bạn không có quyền chỉnh sửa sản phẩm của Shop khác!");
+        }
+
+        if (request.name() != null && !request.name().isBlank()) {
+            product.setName(request.name());
+            String newSlug = createSlug(request.name());
+            if (!newSlug.equals(product.getSlug()) && productRepository.existsBySlug(newSlug)) {
+                newSlug = newSlug + "-" + UUID.randomUUID().toString().substring(0, 8);
+            }
+            product.setSlug(newSlug);
+        }
+        if (request.description() != null) {
+            product.setDescription(request.description());
+        }
+        if (request.price() != null) {
+            product.setPrice(request.price());
+        }
+        if (request.originalPrice() != null) {
+            product.setOriginalPrice(request.originalPrice());
+        }
+        if (request.status() != null) {
+            product.setStatus(request.status());
+        }
+
+        if (request.categoryId() != null) {
+            Category category = categoryRepository.findById(request.categoryId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+            if (category.getLevel() != 3) {
+                throw new BadRequestException("Sản phẩm phải thuộc danh mục Cấp 3!");
+            }
+            product.setCategory(category);
+        }
+
+        if (request.images() != null && !request.images().isEmpty()) {
+            List<Long> existingImageIds = request.images().stream()
+                    .map(UpdateProductImageRequest::id)
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            Map<Long, ProductImage> imageMap = new HashMap<>();
+            if (!existingImageIds.isEmpty()) {
+                productImageRepository.findAllById(existingImageIds)
+                        .forEach(img -> imageMap.put(img.getId(), img));
+            }
+
+            for (UpdateProductImageRequest imgReq : request.images()) {
+                if (imgReq.id() != null) {
+                    ProductImage existingImg = imageMap.get(imgReq.id());
+                    if (existingImg != null) {
+                        if (imgReq.imageUrl() != null) existingImg.setImageUrl(imgReq.imageUrl());
+                        if (imgReq.sortOrder() != null) existingImg.setSortOrder(imgReq.sortOrder());
+                        if (imgReq.isPrimary() != null) existingImg.setIsPrimary(imgReq.isPrimary());
+                    }
+                } else {
+                    ProductImage newImg = ProductImage.builder()
+                            .product(product)
+                            .imageUrl(imgReq.imageUrl())
+                            .sortOrder(imgReq.sortOrder() != null ? imgReq.sortOrder() : 0)
+                            .isPrimary(imgReq.isPrimary() != null ? imgReq.isPrimary() : false)
+                            .build();
+                    product.getImages().add(newImg);
+                }
+            }
+        }
+
+        if (request.variants() != null && !request.variants().isEmpty()) {
+            List<Long> existingVariantIds = request.variants().stream()
+                    .map(UpdateProductVariantRequest::id)
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            Map<Long, ProductVariant> variantMap = new HashMap<>();
+            if (!existingVariantIds.isEmpty()) {
+                productVariantRepository.findAllById(existingVariantIds)
+                        .forEach(v -> variantMap.put(v.getId(), v));
+            }
+
+            for (UpdateProductVariantRequest varReq : request.variants()) {
+                if (varReq.id() != null) {
+                    ProductVariant existingVar = variantMap.get(varReq.id());
+                    if (existingVar != null) {
+                        if (varReq.variantName() != null) existingVar.setVariantName(varReq.variantName());
+                        if (varReq.price() != null) existingVar.setPrice(varReq.price());
+                        if (varReq.stock() != null) existingVar.setStock(varReq.stock());
+                        if (varReq.imageUrl() != null) existingVar.setImageUrl(varReq.imageUrl());
+                        if (varReq.sku() != null && !varReq.sku().equals(existingVar.getSku())) {
+                            if (productVariantRepository.existsBySkuIn(List.of(varReq.sku()))) {
+                                throw new DuplicateResourceException("Mã SKU đã tồn tại: " + varReq.sku());
+                            }
+                            existingVar.setSku(varReq.sku());
+                        }
+                    }
+                } else {
+                    if (varReq.sku() != null && productVariantRepository.existsBySkuIn(List.of(varReq.sku()))) {
+                        throw new DuplicateResourceException("Mã SKU đã tồn tại: " + varReq.sku());
+                    }
+                    ProductVariant newVar = ProductVariant.builder()
+                            .product(product)
+                            .variantName(varReq.variantName())
+                            .sku(varReq.sku())
+                            .price(varReq.price())
+                            .stock(varReq.stock())
+                            .imageUrl(varReq.imageUrl())
+                            .build();
+                    product.getVariants().add(newVar);
+                }
+            }
+        }
+
+        productRepository.save(product);
+        return mapToResponse(product);
+    }
+
+    @Override
+    @Transactional
+    public void deleteProduct(String email, String slug) {
+        Shops shop = shopRepository.findByUser_Email(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Shop not found with email: " + email));
+
+        Product product = productRepository.findBySlug(slug)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with slug: " + slug));
+
+        if (!product.getShop().getId().equals(shop.getId())) {
+            throw new ForbiddenException("Bạn không có quyền XÓA sản phẩm của Shop khác!");
+        }
+        productRepository.delete(product);
+        shop.getProducts().remove(product);
+    }
+
 }
 

@@ -3,6 +3,7 @@ package com.example.zorashopminishopee.module.product.controller;
 import com.example.zorashopminishopee.common.dto.ApiResponse;
 import com.example.zorashopminishopee.common.dto.PageResponse;
 import com.example.zorashopminishopee.module.product.dto.request.FilterSortRequest;
+import com.example.zorashopminishopee.module.product.dto.response.ProductResponse;
 import com.example.zorashopminishopee.module.product.dto.response.ProductSummaryResponse;
 import com.example.zorashopminishopee.module.product.service.ProductService;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,11 @@ public class ProductController {
     ) {
         Page<ProductSummaryResponse> productPage = productService.getAllProducts(request, page, size);
         return ResponseEntity.ok(ApiResponse.success(PageResponse.fromPage(productPage)));
+    }
+    @GetMapping("/{slug}")
+    public ResponseEntity<ApiResponse<ProductResponse>> getProductBySlug(@PathVariable String slug) {
+        ProductResponse productResponse = productService.getProduct(slug);
+        return ResponseEntity.ok(ApiResponse.success(productResponse));
     }
 }
 

@@ -1,0 +1,44 @@
+meta {
+  name: 4. Update Product (Seller)
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/v1/seller/products/ao-phong-nam-local-brand-cotton-premium
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    "name": "Áo Phông Nam Local Brand Cotton Premium V2",
+    "description": "Mô tả sản phẩm đã được cập nhật",
+    "price": 160000.00,
+    "originalPrice": 220000.00,
+    "status": "ACTIVE",
+    "categoryId": 9,
+    "images": [
+      {
+        "id": 1,
+        "imageUrl": "https://picsum.photos/400/400?random=1",
+        "sortOrder": 1,
+        "isPrimary": true
+      }
+    ],
+    "variants": [
+      {
+        "id": 1,
+        "variantName": "Size M - Màu Đen V2",
+        "sku": "AO-BLACK-M-01",
+        "price": 160000.00,
+        "stock": 100,
+        "imageUrl": "https://picsum.photos/400/400?random=1"
+      }
+    ]
+  }
+}
