@@ -19,6 +19,7 @@ import com.example.zorashopminishopee.module.product.repository.ProductVariantRe
 import com.example.zorashopminishopee.module.product.service.ProductService;
 import com.example.zorashopminishopee.module.product.specification.ProductSpecification;
 import com.example.zorashopminishopee.module.users.entity.Shops;
+import com.example.zorashopminishopee.module.users.entity.Users;
 import com.example.zorashopminishopee.module.users.repository.ShopRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -372,6 +373,15 @@ public class ProductServiceImpl implements ProductService {
         }
         productRepository.delete(product);
         shop.getProducts().remove(product);
+    }
+
+    @Override
+    public Page<ProductSummaryResponse> getMyProducts(String email, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"));
+        Shops shop = shopRepository.findByUser_Email(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Shop not found with email: " + email));
+        Page<Product> products = productRepository.findByShop(shop, pageable);
+        return products.map(this::mapToProductSummaryResponse);
     }
 
 }

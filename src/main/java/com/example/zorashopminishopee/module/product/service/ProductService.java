@@ -20,4 +20,5 @@ public interface ProductService {
     ProductResponse getProduct(String slug);
     ProductResponse updateProduct(String email, String slug, UpdateProductRequest request);
     void deleteProduct(String email, String slug);
+    Page<ProductSummaryResponse> getMyProducts(String email, int page, int size);
 }

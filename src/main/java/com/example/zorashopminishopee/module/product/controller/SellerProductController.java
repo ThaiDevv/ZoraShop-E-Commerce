@@ -1,12 +1,15 @@
 package com.example.zorashopminishopee.module.product.controller;
 
 import com.example.zorashopminishopee.common.dto.ApiResponse;
+import com.example.zorashopminishopee.common.dto.PageResponse;
 import com.example.zorashopminishopee.module.product.dto.request.CreateProductRequest;
 import com.example.zorashopminishopee.module.product.dto.request.UpdateProductRequest;
 import com.example.zorashopminishopee.module.product.dto.response.ProductResponse;
+import com.example.zorashopminishopee.module.product.dto.response.ProductSummaryResponse;
 import com.example.zorashopminishopee.module.product.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -33,4 +36,14 @@ public class SellerProductController {
         productService.deleteProduct(authentication.getName(), slug);
         return ResponseEntity.ok(ApiResponse.success());
     }
+    @GetMapping
+    public ResponseEntity<ApiResponse<PageResponse<ProductSummaryResponse>>> getMyProducts(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        Page<ProductSummaryResponse> responses = productService.getMyProducts(authentication.getName(), page, size);
+        return ResponseEntity.ok(ApiResponse.success(PageResponse.fromPage(responses)));
+    }
+
 }
