@@ -6,6 +6,7 @@ import com.example.zorashopminishopee.module.product.dto.request.CreateProductRe
 import com.example.zorashopminishopee.module.product.dto.request.UpdateProductRequest;
 import com.example.zorashopminishopee.module.product.dto.response.ProductResponse;
 import com.example.zorashopminishopee.module.product.dto.response.ProductSummaryResponse;
+import com.example.zorashopminishopee.module.product.service.InventoryService;
 import com.example.zorashopminishopee.module.product.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @PreAuthorize("hasRole('SELLER')")
 public class SellerProductController {
     private final ProductService productService;
+    private final InventoryService inventoryService;
     @PostMapping
     public ResponseEntity<ApiResponse<ProductResponse>> createProduct(Authentication authentication,@Valid @RequestBody CreateProductRequest request){
         ProductResponse productResponse = productService.createProduct(authentication.getName(), request);

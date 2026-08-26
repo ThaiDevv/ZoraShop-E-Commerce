@@ -1,12 +1,17 @@
 package com.example.zorashopminishopee.module.product.service.impl;
 
+import com.example.zorashopminishopee.common.exception.ForbiddenException;
+import com.example.zorashopminishopee.common.exception.ResourceNotFoundException;
 import com.example.zorashopminishopee.module.product.emun.InventoryLogType;
 import com.example.zorashopminishopee.module.product.entity.Inventory;
 import com.example.zorashopminishopee.module.product.entity.InventoryLog;
 import com.example.zorashopminishopee.module.product.entity.ProductVariant;
 import com.example.zorashopminishopee.module.product.repository.InventoryLogRepository;
 import com.example.zorashopminishopee.module.product.repository.InventoryRepository;
+import com.example.zorashopminishopee.module.product.repository.ProductVariantRepository;
 import com.example.zorashopminishopee.module.product.service.InventoryService;
+import com.example.zorashopminishopee.module.users.entity.Shops;
+import com.example.zorashopminishopee.module.users.repository.ShopRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +23,8 @@ import java.time.LocalDateTime;
 public class InventoryServiceImpl implements InventoryService {
     private final InventoryRepository inventoryRepository;
     private final InventoryLogRepository inventoryLogRepository;
+    private final ProductVariantRepository productVariantRepository;
+    private final ShopRepository shopRepository;
     @Override
     @Transactional
     public Inventory createInventory(ProductVariant productVariant, int quantity) {
@@ -67,4 +74,18 @@ public class InventoryServiceImpl implements InventoryService {
                 .build();
         inventoryLogRepository.save(log);
     }
+
+    @Override
+    @Transactional
+    public void updateStockApi(String email, Long variantId, int quantity) {
+        ProductVariant productVariant = productVariantRepository.findById(variantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product variant not found"));
+        Shops shop = shopRepository.findByUser_Email(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Shop not found"));
+        if (!productVariant.getProduct().getShop().getId().equals(shop.getId())) {
+            throw new ForbiddenException("Bạn không có quyền chỉnh sửa sản phẩm của Shop khác!");
+        }
+        updateStock(productVariant, quantity);
+    }
+
 }
