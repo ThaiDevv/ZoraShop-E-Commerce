@@ -10,12 +10,15 @@ import com.example.zorashopminishopee.module.product.dto.request.*;
 import com.example.zorashopminishopee.module.product.dto.response.*;
 import com.example.zorashopminishopee.module.product.emun.ProductSortBy;
 import com.example.zorashopminishopee.module.product.emun.ProductSortDir;
+import com.example.zorashopminishopee.module.product.entity.Inventory;
 import com.example.zorashopminishopee.module.product.entity.Product;
 import com.example.zorashopminishopee.module.product.entity.ProductImage;
 import com.example.zorashopminishopee.module.product.entity.ProductVariant;
+import com.example.zorashopminishopee.module.product.repository.InventoryRepository;
 import com.example.zorashopminishopee.module.product.repository.ProductImageRepository;
 import com.example.zorashopminishopee.module.product.repository.ProductRepository;
 import com.example.zorashopminishopee.module.product.repository.ProductVariantRepository;
+import com.example.zorashopminishopee.module.product.service.InventoryService;
 import com.example.zorashopminishopee.module.product.service.ProductService;
 import com.example.zorashopminishopee.module.product.specification.ProductSpecification;
 import com.example.zorashopminishopee.module.users.entity.Shops;
@@ -44,6 +47,7 @@ public class ProductServiceImpl implements ProductService {
     private final ShopRepository shopRepository;
     private final ProductImageRepository productImageRepository;
     private final ProductVariantRepository productVariantRepository;
+    private final InventoryService  inventoryService;
     public String createSlug(String name) {
         String slug = name.replaceAll("Đ", "D").replaceAll("đ", "d");
         slug = Normalizer
@@ -179,6 +183,12 @@ public class ProductServiceImpl implements ProductService {
             }
         }
         productRepository.save(product);
+        if(product.getVariants() != null) {
+            for( ProductVariant variant : product.getVariants()) {
+                Inventory inventory = inventoryService.createInventory(variant, variant.getStock());
+                variant.setInventory(inventory);
+            }
+        }
         return mapToResponse(product);
     }
     private String getPrimaryImageUrl(List<ProductImage> images) {
@@ -329,7 +339,10 @@ public class ProductServiceImpl implements ProductService {
                     if (existingVar != null) {
                         if (varReq.variantName() != null) existingVar.setVariantName(varReq.variantName());
                         if (varReq.price() != null) existingVar.setPrice(varReq.price());
-                        if (varReq.stock() != null) existingVar.setStock(varReq.stock());
+                        if (varReq.stock() != null) {
+                            inventoryService.updateStock(existingVar, varReq.stock());
+                            existingVar.setStock(varReq.stock());
+                        };
                         if (varReq.imageUrl() != null) existingVar.setImageUrl(varReq.imageUrl());
                         if (varReq.sku() != null && !varReq.sku().equals(existingVar.getSku())) {
                             if (productVariantRepository.existsBySkuIn(List.of(varReq.sku()))) {
@@ -350,6 +363,9 @@ public class ProductServiceImpl implements ProductService {
                             .stock(varReq.stock())
                             .imageUrl(varReq.imageUrl())
                             .build();
+                    productVariantRepository.save(newVar);
+                    Inventory inventory = inventoryService.createInventory(newVar, newVar.getStock());
+                    newVar.setInventory(inventory);
                     product.getVariants().add(newVar);
                 }
             }
