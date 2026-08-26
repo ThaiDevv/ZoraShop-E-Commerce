@@ -7,6 +7,5 @@ import jakarta.transaction.Transactional;
 public interface InventoryService {
     Inventory createInventory(ProductVariant productVariant, int quantity);
     void updateStock(ProductVariant productVariant, int quantity);
-
     void updateStockApi(String email, Long id, int quantity);
 }
