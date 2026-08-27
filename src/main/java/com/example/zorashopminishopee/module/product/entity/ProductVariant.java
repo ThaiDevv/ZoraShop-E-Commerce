@@ -1,9 +1,11 @@
 package com.example.zorashopminishopee.module.product.entity;
 
+import com.example.zorashopminishopee.module.cart.entity.CartItem;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Entity
 @Table(name = "product_variants")
@@ -40,4 +42,7 @@ public class ProductVariant {
 
     @Column(name = "image_url")
     private String imageUrl;
+
+    @OneToMany(mappedBy = "variant")
+    private List<CartItem> cartItems;
 }

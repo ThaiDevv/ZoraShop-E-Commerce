@@ -1,6 +1,7 @@
 package com.example.zorashopminishopee.module.users.entity;
 
 import com.example.zorashopminishopee.common.base.BaseEntity;
+import com.example.zorashopminishopee.module.cart.entity.Cart;
 import com.example.zorashopminishopee.module.users.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
@@ -50,4 +51,7 @@ public class Users extends BaseEntity {
 
     @OneToOne(mappedBy = "user")
     private Shops shops;
+
+    @OneToOne(mappedBy = "user")
+    private Cart cart;
 }
