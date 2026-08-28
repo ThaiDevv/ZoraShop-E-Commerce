@@ -5,6 +5,8 @@ import com.example.zorashopminishopee.common.exception.InsufficientStockExceptio
 import com.example.zorashopminishopee.common.exception.ResourceNotFoundException;
 import com.example.zorashopminishopee.module.cart.dto.request.CreateCartItemRequest;
 import com.example.zorashopminishopee.module.cart.dto.response.CartItemResponse;
+import com.example.zorashopminishopee.module.cart.dto.response.CartResponse;
+import com.example.zorashopminishopee.module.cart.dto.response.CartShopGroupResponse;
 import com.example.zorashopminishopee.module.cart.entity.Cart;
 import com.example.zorashopminishopee.module.cart.entity.CartItem;
 import com.example.zorashopminishopee.module.cart.repository.CartItemRepository;
@@ -12,15 +14,17 @@ import com.example.zorashopminishopee.module.cart.repository.CartRepository;
 import com.example.zorashopminishopee.module.cart.service.CartService;
 import com.example.zorashopminishopee.module.product.entity.ProductVariant;
 import com.example.zorashopminishopee.module.product.repository.ProductVariantRepository;
+import com.example.zorashopminishopee.module.users.entity.Shops;
 import com.example.zorashopminishopee.module.users.entity.Users;
 import com.example.zorashopminishopee.module.users.repository.UserRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.Objects;
-import java.util.Optional;
+import java.math.BigDecimal;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -135,4 +139,43 @@ public class CartServiceImpl implements CartService {
         cartItemRepository.save(cartItem.get());
         return mapToCartItemResponse(cartItem.get());
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CartResponse getCart(String email) {
+        Cart cart = getCartByEmail(email);
+        List<CartItem> cartItems = cartItemRepository.findByCartIdWithProductAndShop(cart.getId());
+        Map<Shops, List<CartItem>> itemsByShopMap = cartItems.stream()
+                .collect(Collectors.groupingBy(
+                        item -> item.getVariant().getProduct().getShop(),
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+        List<CartShopGroupResponse> cartShops = itemsByShopMap.entrySet()
+                .stream().map(entry
+                        -> {
+                            Shops shop = entry.getKey();
+                            List<CartItemResponse>   cartItemList = entry.getValue().stream().map(
+                                    this::mapToCartItemResponse
+                            ).toList();
+                            return new CartShopGroupResponse(
+                                    shop.getId(),
+                                    shop.getName(),
+                                    shop.getLogoUrl(),
+                                    cartItemList
+                            );
+                        }
+                ).toList();
+        BigDecimal totalAmount = cartItems.stream()
+                .map(item -> item.getVariant().getPrice()
+                        .multiply(BigDecimal.valueOf(item.getQuantity()))).reduce(BigDecimal.ZERO, BigDecimal::add);
+        int totalItem = cartItems.stream().mapToInt(CartItem::getQuantity).sum();
+        return new CartResponse(
+                cart.getId(),
+                totalAmount,
+                totalItem,
+                cartShops
+        );
+    }
+
 }
