@@ -1,5 +1,6 @@
 package com.example.zorashopminishopee.module.cart.service.impl;
 
+import com.example.zorashopminishopee.common.exception.BadRequestException;
 import com.example.zorashopminishopee.common.exception.InsufficientStockException;
 import com.example.zorashopminishopee.common.exception.ResourceNotFoundException;
 import com.example.zorashopminishopee.module.cart.dto.request.CreateCartItemRequest;
@@ -48,13 +49,29 @@ public class CartServiceImpl implements CartService {
         ProductVariant variant = cartItem.getVariant();
         return new CartItemResponse(
                 cartItem.getId(),
+                variant.getId(),
+                variant.getSku(),
                 variant.getProduct().getName(),
                 variant.getVariantName(),
+                variant.getPrice(),
+                variant.getProduct().getOriginalPrice(),
                 cartItem.getQuantity(),
+                variant.getStock(),
                 variant.getImageUrl()
         );
     }
+    public int checkStock(Optional<CartItem> existingItemOpt, ProductVariant variant, int quantity) {
+        int currentQtyInCart = existingItemOpt.map(CartItem::getQuantity).orElse(0);
+        int newTotalQuantity = currentQtyInCart + quantity;
 
+        if (variant.getStock() < newTotalQuantity) {
+            throw new InsufficientStockException(
+                    String.format("Tồn kho không đủ! Trong kho còn %d, giỏ hàng đã có %d, bạn muốn thêm %d",
+                            variant.getStock(), currentQtyInCart, quantity)
+            );
+        }
+        return newTotalQuantity;
+    }
     @Override
     @Transactional
     public CartItemResponse addToCart(String email, CreateCartItemRequest request) {
@@ -67,15 +84,7 @@ public class CartServiceImpl implements CartService {
                 .findByCart_IdAndVariant_Id(cart.getId(), variant.getId());
 
         CartItem cartItem;
-        int currentQtyInCart = existingItemOpt.map(CartItem::getQuantity).orElse(0);
-        int newTotalQuantity = currentQtyInCart + request.quantity();
-
-        if (variant.getStock() < newTotalQuantity) {
-            throw new InsufficientStockException(
-                    String.format("Tồn kho không đủ! Trong kho còn %d, giỏ hàng đã có %d, bạn muốn thêm %d",
-                            variant.getStock(), currentQtyInCart, request.quantity())
-            );
-        }
+        int newTotalQuantity = checkStock(existingItemOpt, variant, request.quantity());
 
         if (existingItemOpt.isPresent()) {
             cartItem = existingItemOpt.get();
@@ -91,5 +100,39 @@ public class CartServiceImpl implements CartService {
         }
 
         return mapToCartItemResponse(cartItem);
+    }
+
+    @Override
+    @Transactional
+    public void removeFromCart(String email, Long id) {
+        Cart cart = getCartByEmail(email);
+        cartItemRepository.delete(cartItemRepository.findById_AndCart_Id(id, cart.getId()).orElseThrow(
+                () -> new ResourceNotFoundException("CartItem not found with ID: " + id)
+        ));
+        cartRepository.save(cart);
+    }
+
+    @Override
+    @Transactional
+    public CartItemResponse updateCartItem(String email, Long id, Integer quantity) {
+        if(quantity == null) {
+            throw new BadRequestException("Quantity cannot be null");
+        }
+        Cart cart = getCartByEmail(email);
+        Optional<CartItem> cartItem = cartItemRepository.findById_AndCart_Id(id, cart.getId());
+        if (quantity <= 0){
+            removeFromCart(email, id);
+            return null;
+        }
+        ProductVariant variant;
+        if (cartItem.isPresent()) {
+            variant = cartItem.get().getVariant();
+        }else {
+            throw new ResourceNotFoundException("CartItem not found with ID: " + id);
+        }
+        int newQuantity = checkStock(cartItem, variant, quantity - cartItem.get().getQuantity());
+        cartItem.get().setQuantity(newQuantity);
+        cartItemRepository.save(cartItem.get());
+        return mapToCartItemResponse(cartItem.get());
     }
 }

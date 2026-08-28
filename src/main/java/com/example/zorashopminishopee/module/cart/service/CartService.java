@@ -6,5 +6,6 @@ import com.example.zorashopminishopee.module.cart.entity.Cart;
 
 public interface CartService {
     public CartItemResponse addToCart(String email, CreateCartItemRequest createCartItemRequest);
-
+    public void removeFromCart(String email, Long id);
+    public CartItemResponse updateCartItem(String email, Long id, Integer quantity);
 }
