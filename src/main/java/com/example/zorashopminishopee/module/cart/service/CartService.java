@@ -10,4 +10,5 @@ public interface CartService {
     public void removeFromCart(String email, Long id);
     public CartItemResponse updateCartItem(String email, Long id, Integer quantity);
     public CartResponse getCart(String email);
+    public void deleteCart(String email);
 }

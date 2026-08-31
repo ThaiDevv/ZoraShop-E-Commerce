@@ -178,4 +178,12 @@ public class CartServiceImpl implements CartService {
         );
     }
 
+    @Override
+    @Transactional
+    public void deleteCart(String email) {
+        Users user = userRepository.findByEmail(email);
+        cartRepository.removeByUser(user);
+        userRepository.save(user);
+    }
+
 }

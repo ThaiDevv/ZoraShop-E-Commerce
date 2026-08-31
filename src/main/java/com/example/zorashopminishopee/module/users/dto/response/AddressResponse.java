@@ -10,7 +10,5 @@ public record AddressResponse(
         String ward,
         String district,
         String city,
-        Boolean isDefault,
-        LocalDateTime createdDate,
-        LocalDateTime lastModifiedDate
+        Boolean isDefault
 ) {}

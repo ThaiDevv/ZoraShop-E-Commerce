@@ -1,10 +1,12 @@
 package com.example.zorashopminishopee.module.users.entity;
 
 import com.example.zorashopminishopee.common.base.BaseEntity;
+import com.example.zorashopminishopee.module.oder.entity.Order;
 import com.example.zorashopminishopee.module.product.entity.Product;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.List;
 import java.util.Set;
 
 @Setter
@@ -15,7 +17,6 @@ import java.util.Set;
 @Entity
 @Table(name = "Shops")
 public class Shops extends BaseEntity {
-
 
     @OneToOne(cascade = {
             CascadeType.PERSIST,
@@ -30,7 +31,7 @@ public class Shops extends BaseEntity {
             fetch = FetchType.LAZY,
             orphanRemoval = true
     )
-    private Set<Product> products ;
+    private Set<Product> products;
 
     @Column(name = "name")
     private String name;
@@ -55,4 +56,7 @@ public class Shops extends BaseEntity {
 
     @Column(name = "is_active")
     private Boolean isActive;
+
+    @OneToMany(mappedBy = "shop", fetch = FetchType.LAZY)
+    private List<Order> orders;
 }

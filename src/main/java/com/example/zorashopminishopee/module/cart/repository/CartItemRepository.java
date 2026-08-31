@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public interface CartItemRepository extends JpaRepository<CartItem, Long> {
@@ -26,4 +27,17 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long> {
             "WHERE item.cart.id = :cartId " +
             "ORDER BY sp.id, item.addAt DESC")
     List<CartItem> findByCartIdWithProductAndShop(@Param("cartId") Long cartId);
+
+    @Query("SELECT CI FROM CartItem CI " +
+            "JOIN FETCH CI.cart C " +
+            "JOIN FETCH C.user us " +
+            "JOIN fetch CI.variant v " +
+            "JOIN fetch v.product p " +
+            "JOIN fetch p.shop s " +
+            "where CI.id in :ids " +
+            "AND us.email =:email " +
+            "ORDER BY s.id, CI.addAt DESC")
+    List<CartItem> findByIdAndCart_User_Email(@Param("ids") List<Long> cartIds,@Param("email") String email);
+
+
 }

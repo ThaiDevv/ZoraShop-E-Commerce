@@ -1,8 +1,6 @@
 package com.example.zorashopminishopee.module.product.dto.response;
 
-import com.example.zorashopminishopee.module.product.emun.InventoryLogType;
-import com.example.zorashopminishopee.module.product.entity.Inventory;
-import jakarta.persistence.*;
+import com.example.zorashopminishopee.module.product.enums.InventoryLogType;
 
 import java.time.LocalDateTime;
 

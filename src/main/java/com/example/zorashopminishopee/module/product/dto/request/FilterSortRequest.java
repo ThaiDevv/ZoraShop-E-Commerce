@@ -1,7 +1,7 @@
 package com.example.zorashopminishopee.module.product.dto.request;
 
-import com.example.zorashopminishopee.module.product.emun.ProductSortBy;
-import com.example.zorashopminishopee.module.product.emun.ProductSortDir;
+import com.example.zorashopminishopee.module.product.enums.ProductSortBy;
+import com.example.zorashopminishopee.module.product.enums.ProductSortDir;
 
 import java.math.BigDecimal;
 

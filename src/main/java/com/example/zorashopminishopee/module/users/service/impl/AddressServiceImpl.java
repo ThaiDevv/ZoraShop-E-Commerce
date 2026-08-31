@@ -141,9 +141,7 @@ public class AddressServiceImpl implements AddressService {
                 address.getWard(),
                 address.getDistrict(),
                 address.getCity(),
-                address.getIsDefault(),
-                address.getCreatedDate(),
-                address.getLastModifiedDate()
+                address.getIsDefault()
         );
     }
 }

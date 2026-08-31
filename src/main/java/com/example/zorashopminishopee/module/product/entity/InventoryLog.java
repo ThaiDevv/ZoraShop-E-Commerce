@@ -1,6 +1,6 @@
 package com.example.zorashopminishopee.module.product.entity;
 
-import com.example.zorashopminishopee.module.product.emun.InventoryLogType;
+import com.example.zorashopminishopee.module.product.enums.InventoryLogType;
 import jakarta.persistence.*;
 import lombok.*;
 

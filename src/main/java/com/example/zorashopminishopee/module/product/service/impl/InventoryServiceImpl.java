@@ -1,8 +1,12 @@
 package com.example.zorashopminishopee.module.product.service.impl;
 
 import com.example.zorashopminishopee.common.exception.ForbiddenException;
+import com.example.zorashopminishopee.common.exception.InsufficientStockException;
 import com.example.zorashopminishopee.common.exception.ResourceNotFoundException;
-import com.example.zorashopminishopee.module.product.emun.InventoryLogType;
+import com.example.zorashopminishopee.module.cart.entity.CartItem;
+import com.example.zorashopminishopee.module.cart.repository.CartItemRepository;
+import com.example.zorashopminishopee.module.oder.entity.Order;
+import com.example.zorashopminishopee.module.product.enums.InventoryLogType;
 import com.example.zorashopminishopee.module.product.entity.Inventory;
 import com.example.zorashopminishopee.module.product.entity.InventoryLog;
 import com.example.zorashopminishopee.module.product.entity.ProductVariant;
@@ -12,15 +16,20 @@ import com.example.zorashopminishopee.module.product.repository.ProductVariantRe
 import com.example.zorashopminishopee.module.product.service.InventoryService;
 import com.example.zorashopminishopee.module.users.entity.Shops;
 import com.example.zorashopminishopee.module.users.repository.ShopRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class InventoryServiceImpl implements InventoryService {
+    @PersistenceContext
+    private final EntityManager em;
     private final InventoryRepository inventoryRepository;
     private final InventoryLogRepository inventoryLogRepository;
     private final ProductVariantRepository productVariantRepository;
@@ -88,4 +97,21 @@ public class InventoryServiceImpl implements InventoryService {
         updateStock(productVariant, quantity);
     }
 
+    @Override
+    @Transactional
+    public void checkStockFromCartItem(List<CartItem> cartItems) {
+        for (CartItem cartItem : cartItems) {
+            if(cartItem.getVariant().getInventory() == null) {
+                cartItem.getVariant().setInventory(
+                        createInventory(cartItem.getVariant(),cartItem.getVariant().getStock())
+                );
+            }
+            int stock = cartItem.getVariant().getInventory().getAvailable();
+            if (cartItem.getQuantity() > stock) {
+                throw new InsufficientStockException(
+                        "Số lượng trong kho không đủ với đơn hàng: " + cartItem.getVariant().getVariantName()
+                );
+            }
+        }
+    }
 }

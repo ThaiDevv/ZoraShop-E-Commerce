@@ -1,8 +1,11 @@
 package com.example.zorashopminishopee.module.users.entity;
 
 import com.example.zorashopminishopee.common.base.BaseEntity;
+import com.example.zorashopminishopee.module.oder.entity.Order;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.List;
 
 @Setter
 @Getter
@@ -36,4 +39,7 @@ public class Address extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private Users user;
+
+    @OneToMany(mappedBy = "address", fetch = FetchType.LAZY)
+    private List<Order> orders;
 }

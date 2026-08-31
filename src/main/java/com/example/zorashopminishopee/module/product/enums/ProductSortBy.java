@@ -1,4 +1,4 @@
-package com.example.zorashopminishopee.module.product.emun;
+package com.example.zorashopminishopee.module.product.enums;
 
 public enum ProductSortBy {
     CREATED_DATE("createdDate"),
