@@ -6,6 +6,7 @@ import com.example.zorashopminishopee.common.exception.ResourceNotFoundException
 import com.example.zorashopminishopee.module.cart.entity.CartItem;
 import com.example.zorashopminishopee.module.cart.repository.CartItemRepository;
 import com.example.zorashopminishopee.module.oder.entity.Order;
+import com.example.zorashopminishopee.module.oder.entity.OrderItem;
 import com.example.zorashopminishopee.module.product.enums.InventoryLogType;
 import com.example.zorashopminishopee.module.product.entity.Inventory;
 import com.example.zorashopminishopee.module.product.entity.InventoryLog;
@@ -13,6 +14,7 @@ import com.example.zorashopminishopee.module.product.entity.ProductVariant;
 import com.example.zorashopminishopee.module.product.repository.InventoryLogRepository;
 import com.example.zorashopminishopee.module.product.repository.InventoryRepository;
 import com.example.zorashopminishopee.module.product.repository.ProductVariantRepository;
+import com.example.zorashopminishopee.module.product.service.InventoryLogService;
 import com.example.zorashopminishopee.module.product.service.InventoryService;
 import com.example.zorashopminishopee.module.users.entity.Shops;
 import com.example.zorashopminishopee.module.users.repository.ShopRepository;
@@ -34,6 +36,7 @@ public class InventoryServiceImpl implements InventoryService {
     private final InventoryLogRepository inventoryLogRepository;
     private final ProductVariantRepository productVariantRepository;
     private final ShopRepository shopRepository;
+    private final InventoryLogService inventoryLogService;
     @Override
     @Transactional
     public Inventory createInventory(ProductVariant productVariant, int quantity) {
@@ -113,5 +116,17 @@ public class InventoryServiceImpl implements InventoryService {
                 );
             }
         }
+    }
+
+    @Override
+    public void cancelReserved(List<OrderItem> orderItems) {
+        orderItems.forEach(orderItem -> {
+            Inventory inventory = orderItem.getVariant().getInventory();
+            inventory.setReserved(inventory.getReserved() - orderItem.getQuantity());
+            em.flush();
+            em.refresh(inventory);
+            orderItem.getVariant().setStock(inventory.getAvailable());
+            inventoryLogService.cancelReversedLog(orderItem, orderItem.getOrder());
+        });
     }
 }

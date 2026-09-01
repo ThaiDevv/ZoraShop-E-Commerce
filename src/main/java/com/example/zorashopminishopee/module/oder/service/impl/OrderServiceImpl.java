@@ -5,6 +5,7 @@ import com.example.zorashopminishopee.common.exception.ResourceNotFoundException
 import com.example.zorashopminishopee.module.cart.entity.CartItem;
 import com.example.zorashopminishopee.module.cart.repository.CartItemRepository;
 import com.example.zorashopminishopee.module.oder.dto.request.CheckoutCartRequest;
+import com.example.zorashopminishopee.module.oder.dto.response.CancelOrderResponse;
 import com.example.zorashopminishopee.module.oder.dto.response.CheckoutResponse;
 import com.example.zorashopminishopee.module.oder.dto.response.HistoryOrderResponse;
 import com.example.zorashopminishopee.module.oder.entity.Order;
@@ -135,6 +136,22 @@ public class OrderServiceImpl implements OrderService {
                 .and(OrderSpecification.hasStatus(status));
         Page<Order> orders = orderRepository.findAll(spec, pageable);
         return orders.map(orderMapper::mapToHistoryOrderResponse);
+    }
+
+    @Override
+    @Transactional
+    public CancelOrderResponse cancelOrder(String email, Long orderId, String reason) {
+        Order order = orderRepository.findByUser_EmailAndId(email ,orderId);
+        if (order == null) {
+            throw new ResourceNotFoundException("No order found with id " + orderId);
+        }
+        if (order.getStatus() != StatusType.PENDING && order.getStatus() != StatusType.CONFIRMED) {
+            throw new BadRequestException("Không thể hủy đơn hàng đang trong quá trình vận chuyển hoặc đã hoàn thành!");
+        }
+        inventoryService.cancelReserved(order.getOrderItems());
+        order.setStatus(StatusType.CANCELLED);
+        orderRepository.save(order);
+        return orderMapper.mapToCancelOrderResponse(order, reason);
     }
 
 }

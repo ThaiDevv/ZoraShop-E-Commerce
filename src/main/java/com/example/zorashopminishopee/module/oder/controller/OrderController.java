@@ -3,6 +3,7 @@ package com.example.zorashopminishopee.module.oder.controller;
 import com.example.zorashopminishopee.common.dto.ApiResponse;
 import com.example.zorashopminishopee.common.dto.PageResponse;
 import com.example.zorashopminishopee.module.oder.dto.request.CheckoutCartRequest;
+import com.example.zorashopminishopee.module.oder.dto.response.CancelOrderResponse;
 import com.example.zorashopminishopee.module.oder.dto.response.CheckoutResponse;
 import com.example.zorashopminishopee.module.oder.dto.response.HistoryOrderItemResponse;
 import com.example.zorashopminishopee.module.oder.dto.response.HistoryOrderResponse;
@@ -37,5 +38,13 @@ public class OrderController {
                                                                                            @RequestParam(defaultValue = "20") int size){
         Page<HistoryOrderResponse> responsePage = orderService.getHistoryOrders(authentication.getName(), status, page,size);
         return  ResponseEntity.ok(ApiResponse.success(PageResponse.fromPage(responsePage)));
+    }
+
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<ApiResponse<CancelOrderResponse>> cancelOrder(Authentication authentication,
+                                                                        @PathVariable Long id,
+                                                                        @RequestBody(required = false) String reason) {
+        CancelOrderResponse response = orderService.cancelOrder(authentication.getName(), id, reason);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

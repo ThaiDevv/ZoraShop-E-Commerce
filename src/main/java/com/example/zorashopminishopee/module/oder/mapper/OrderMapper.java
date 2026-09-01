@@ -6,6 +6,7 @@ import com.example.zorashopminishopee.module.oder.entity.OrderItem;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
@@ -96,6 +97,16 @@ public class OrderMapper {
                 order.getStatus(),
                 order.getCreatedDate(),
                 order.getOrderItems().stream().map(this::mapToHistoryOrderItemResponse).toList()
+        );
+    }
+    public CancelOrderResponse mapToCancelOrderResponse(Order order, String reason) {
+        if (order == null) return null;
+        return new CancelOrderResponse(
+                order.getId(),
+                order.getOrderNumber(),
+                order.getStatus(),
+                reason,
+                LocalDateTime.now()
         );
     }
 }
