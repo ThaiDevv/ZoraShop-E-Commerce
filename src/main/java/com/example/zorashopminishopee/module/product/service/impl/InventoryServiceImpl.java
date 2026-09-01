@@ -29,7 +29,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class InventoryServiceImpl implements InventoryService {
     @PersistenceContext
-    private final EntityManager em;
+    private EntityManager em;
     private final InventoryRepository inventoryRepository;
     private final InventoryLogRepository inventoryLogRepository;
     private final ProductVariantRepository productVariantRepository;

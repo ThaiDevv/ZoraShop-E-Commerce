@@ -74,7 +74,7 @@ public class OrderMapper {
         if (orderItem == null) return null;
         return new HistoryOrderItemResponse(
                 orderItem.getId(),
-                orderItem.getProductId(), 
+                orderItem.getProductId(),
                 orderItem.getProductName(),
                 orderItem.getProductImg(),
                 orderItem.getVariantName(),
