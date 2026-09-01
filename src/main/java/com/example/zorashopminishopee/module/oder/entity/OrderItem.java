@@ -27,6 +27,9 @@ public class OrderItem {
     @JoinColumn(name = "variant_id", nullable = false)
     private ProductVariant variant;
 
+    @Column(name = "product_img")
+    private String productImg;
+
     @Column(name = "product_name", nullable = false)
     private String productName;
 
@@ -35,6 +38,9 @@ public class OrderItem {
 
     @Column(name = "price", precision = 15, scale = 2, nullable = false)
     private BigDecimal price;
+
+    @Column(name = "product_id", nullable = false)
+    private Long productId;
 
     @Column(name = "quantity", nullable = false)
     private Integer quantity;

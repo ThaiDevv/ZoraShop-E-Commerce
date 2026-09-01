@@ -13,6 +13,7 @@ public record OrderResponse (
         String shop_name,
         Long addressId,
         String receiveName,
+        String shopUrl,
         String receivePhone,
         String receiveAddress,
         BigDecimal subtotal,

@@ -46,6 +46,8 @@ public class Order extends BaseEntity {
     @Column(name = "shipping_fee", precision = 15, scale = 2, nullable = false)
     private BigDecimal shippingFee = BigDecimal.ZERO;
 
+    @Column(name = "shopImage_url")
+    String shopImageUrl;
     @Builder.Default
     @Column(name = "discount_amount", precision = 15, scale = 2, nullable = false)
     private BigDecimal discountAmount = BigDecimal.ZERO;

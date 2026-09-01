@@ -5,6 +5,7 @@ CREATE TABLE orders (
         shop_id BIGINT NOT NULL,
         address_id BIGINT NOT NULL,
         voucher_id BIGINT,
+        shopImage_url VARCHAR(255) ,
         subtotal DECIMAL(15, 2) NOT NULL,
         shipping_fee DECIMAL(15, 2) NOT NULL DEFAULT 0,
         discount_amount DECIMAL(15, 2) NOT NULL DEFAULT 0,
@@ -41,9 +42,11 @@ CREATE TABLE order_items (
     variant_id BIGINT NOT NULL,
     product_name VARCHAR(255) NOT NULL,
     variant_name VARCHAR(255),
+    product_id BIGINT NOT NULL,
     price DECIMAL(15, 2) NOT NULL,
     quantity INT NOT NULL,
     subtotal DECIMAL(15, 2) NOT NULL,
+    product_img VARCHAR(255),
     CONSTRAINT fk_order_items_order
         FOREIGN KEY (order_id)
             REFERENCES orders(id)
