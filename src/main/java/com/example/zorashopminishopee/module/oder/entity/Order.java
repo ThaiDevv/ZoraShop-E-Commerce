@@ -2,6 +2,7 @@ package com.example.zorashopminishopee.module.oder.entity;
 
 import com.example.zorashopminishopee.common.base.BaseEntity;
 import com.example.zorashopminishopee.module.oder.enums.StatusType;
+import com.example.zorashopminishopee.module.payment.entity.Payment;
 import com.example.zorashopminishopee.module.users.entity.Address;
 import com.example.zorashopminishopee.module.users.entity.Shops;
 import com.example.zorashopminishopee.module.users.entity.Users;
@@ -23,6 +24,9 @@ public class Order extends BaseEntity {
 
     @Column(name = "order_number", nullable = false, unique = true, length = 50)
     private String orderNumber;
+
+    @OneToOne(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Payment payment;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

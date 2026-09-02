@@ -16,6 +16,10 @@ import com.example.zorashopminishopee.module.oder.repository.OrderItemRepository
 import com.example.zorashopminishopee.module.oder.repository.OrderRepository;
 import com.example.zorashopminishopee.module.oder.service.OrderService;
 import com.example.zorashopminishopee.module.oder.specification.OrderSpecification;
+import com.example.zorashopminishopee.module.payment.entity.Payment;
+import com.example.zorashopminishopee.module.payment.enums.PaymentMethod;
+import com.example.zorashopminishopee.module.payment.repository.PaymentRepository;
+import com.example.zorashopminishopee.module.payment.service.PaymentService;
 import com.example.zorashopminishopee.module.product.entity.ProductVariant;
 import com.example.zorashopminishopee.module.product.service.InventoryLogService;
 import com.example.zorashopminishopee.module.product.service.InventoryService;
@@ -48,8 +52,8 @@ public class OrderServiceImpl implements OrderService {
     private final InventoryLogService inventoryLogService;
     private final AddressRepository addressRepository;
     private final OrderMapper orderMapper;
-
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private final PaymentService paymentService;
 
     public String generateOrderNumber() {
         String datePart = LocalDate.now().format(DATE_FORMAT);
@@ -75,6 +79,14 @@ public class OrderServiceImpl implements OrderService {
                 LinkedHashMap::new,
                 Collectors.toList()
         ));
+        String groupTxnId;
+        if(request.paymentMethod() != PaymentMethod.COD) {
+            groupTxnId = "TXN-" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+                    + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+
+        } else {
+            groupTxnId = "";
+        }
         shopsListMap.forEach((shop, itemsOfShop) -> {
             String orderNumber = generateOrderNumber();
             BigDecimal subtotal = itemsOfShop.stream().map(
@@ -83,7 +95,6 @@ public class OrderServiceImpl implements OrderService {
 
             BigDecimal shippingFee = BigDecimal.ZERO;
             BigDecimal discountAmount = BigDecimal.ZERO;
-
             Order order = Order.builder()
                     .orderNumber(orderNumber)
                     .user(user)
@@ -98,8 +109,8 @@ public class OrderServiceImpl implements OrderService {
                     .status(StatusType.PENDING)
                     .note(request.note())
                     .build();
-
             orderRepository.save(order);
+            Payment payment= paymentService.createPayment(order, request.paymentMethod(), groupTxnId);
             inventoryLogService.createInventoryLogInCartOrder(itemsOfShop, order);
 
             List<OrderItem> orderItems = itemsOfShop.stream().map(
@@ -119,7 +130,7 @@ public class OrderServiceImpl implements OrderService {
                         return orderItemRepository.save(item);
                     }
             ).toList();
-
+            order.setPayment(payment);
             order.setOrderItems(orderItems);
             orderRepository.save(order);
             orders.add(order);
