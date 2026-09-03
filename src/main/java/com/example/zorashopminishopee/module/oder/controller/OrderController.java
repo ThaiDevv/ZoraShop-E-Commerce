@@ -3,10 +3,7 @@ package com.example.zorashopminishopee.module.oder.controller;
 import com.example.zorashopminishopee.common.dto.ApiResponse;
 import com.example.zorashopminishopee.common.dto.PageResponse;
 import com.example.zorashopminishopee.module.oder.dto.request.CheckoutCartRequest;
-import com.example.zorashopminishopee.module.oder.dto.response.CancelOrderResponse;
-import com.example.zorashopminishopee.module.oder.dto.response.CheckoutResponse;
-import com.example.zorashopminishopee.module.oder.dto.response.HistoryOrderItemResponse;
-import com.example.zorashopminishopee.module.oder.dto.response.HistoryOrderResponse;
+import com.example.zorashopminishopee.module.oder.dto.response.*;
 import com.example.zorashopminishopee.module.oder.entity.Order;
 import com.example.zorashopminishopee.module.oder.enums.StatusType;
 import com.example.zorashopminishopee.module.oder.service.OrderService;
@@ -46,5 +43,10 @@ public class OrderController {
                                                                         @RequestBody(required = false) String reason) {
         CancelOrderResponse response = orderService.cancelOrder(authentication.getName(), id, reason);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<DetailOrderResponse>> getDetailOrder(Authentication authentication, @PathVariable Long id){
+        DetailOrderResponse detailOrderResponse = orderService.detailOrder(authentication.getName(), id);
+        return ResponseEntity.ok(ApiResponse.success(detailOrderResponse));
     }
 }

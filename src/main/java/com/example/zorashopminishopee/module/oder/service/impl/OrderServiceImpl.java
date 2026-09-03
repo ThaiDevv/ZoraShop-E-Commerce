@@ -7,6 +7,7 @@ import com.example.zorashopminishopee.module.cart.repository.CartItemRepository;
 import com.example.zorashopminishopee.module.oder.dto.request.CheckoutCartRequest;
 import com.example.zorashopminishopee.module.oder.dto.response.CancelOrderResponse;
 import com.example.zorashopminishopee.module.oder.dto.response.CheckoutResponse;
+import com.example.zorashopminishopee.module.oder.dto.response.DetailOrderResponse;
 import com.example.zorashopminishopee.module.oder.dto.response.HistoryOrderResponse;
 import com.example.zorashopminishopee.module.oder.entity.Order;
 import com.example.zorashopminishopee.module.oder.entity.OrderItem;
@@ -27,7 +28,7 @@ import com.example.zorashopminishopee.module.users.entity.Address;
 import com.example.zorashopminishopee.module.users.entity.Shops;
 import com.example.zorashopminishopee.module.users.entity.Users;
 import com.example.zorashopminishopee.module.users.repository.AddressRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -152,10 +153,9 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public CancelOrderResponse cancelOrder(String email, Long orderId, String reason) {
-        Order order = orderRepository.findByUser_EmailAndId(email ,orderId);
-        if (order == null) {
-            throw new ResourceNotFoundException("No order found with id " + orderId);
-        }
+        Order order = orderRepository.findForCancelByUserEmailAndId(email, orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng #" + orderId + " hoặc bạn không có quyền truy cập!"));
+
         if (order.getStatus() != StatusType.PENDING && order.getStatus() != StatusType.CONFIRMED) {
             throw new BadRequestException("Không thể hủy đơn hàng đang trong quá trình vận chuyển hoặc đã hoàn thành!");
         }
@@ -165,4 +165,11 @@ public class OrderServiceImpl implements OrderService {
         return orderMapper.mapToCancelOrderResponse(order, reason);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public DetailOrderResponse detailOrder(String email, Long orderId) {
+        Order order = orderRepository.findDetailByIdAndUserEmail(orderId, email)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng #" + orderId + " hoặc bạn không có quyền truy cập!"));
+        return orderMapper.mapToDetailOrderResponse(order);
+    }
 }

@@ -1,6 +1,7 @@
 package com.example.zorashopminishopee.module.oder.mapper;
 
 import com.example.zorashopminishopee.module.oder.dto.response.*;
+import com.example.zorashopminishopee.module.payment.enums.PaymentMethod;
 import com.example.zorashopminishopee.module.oder.entity.Order;
 import com.example.zorashopminishopee.module.oder.entity.OrderItem;
 import org.springframework.stereotype.Component;
@@ -107,6 +108,51 @@ public class OrderMapper {
                 order.getStatus(),
                 reason,
                 LocalDateTime.now()
+        );
+    }
+    public DetailOrderResponse mapToDetailOrderResponse(Order order) {
+        if (order == null) return null;
+        String receiveAddress = order.getAddress() != null
+                ? String.format("%s, %s, %s, %s",
+                order.getAddress().getStreet(),
+                order.getAddress().getWard(),
+                order.getAddress().getDistrict(),
+                order.getAddress().getCity())
+                : null;
+
+        Long shopId = order.getShop() != null ? order.getShop().getId() : null;
+        String shopName = order.getShop() != null ? order.getShop().getName() : null;
+
+        Long paymentId = order.getPayment() != null ? order.getPayment().getId() : null;
+        PaymentMethod paymentMethod = order.getPayment() != null ? order.getPayment().getMethod() : null;
+        String transactionId = order.getPayment() != null ? order.getPayment().getTransactionId() : null;
+
+        String nameReceive = order.getAddress() != null ? order.getAddress().getFullName() : null;
+        String phoneReceive = order.getAddress() != null ? order.getAddress().getPhone() : null;
+
+        List<OrderItemResponse> itemResponses = order.getOrderItems() != null
+                ? order.getOrderItems().stream().map(this::toOrderItemResponse).toList()
+                : List.of();
+
+        return new DetailOrderResponse(
+                order.getId(),
+                shopId,
+                paymentId,
+                order.getOrderNumber(),
+                paymentMethod,
+                transactionId,
+                shopName,
+                order.getShopImageUrl(),
+                nameReceive,
+                phoneReceive,
+                receiveAddress,
+                order.getSubtotal(),
+                order.getShippingFee(),
+                order.getDiscountAmount(),
+                order.getTotalAmount(),
+                order.getStatus(),
+                order.getCreatedDate(),
+                itemResponses
         );
     }
 }
