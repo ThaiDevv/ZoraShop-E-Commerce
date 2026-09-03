@@ -5,10 +5,7 @@ import com.example.zorashopminishopee.common.exception.ResourceNotFoundException
 import com.example.zorashopminishopee.module.cart.entity.CartItem;
 import com.example.zorashopminishopee.module.cart.repository.CartItemRepository;
 import com.example.zorashopminishopee.module.oder.dto.request.CheckoutCartRequest;
-import com.example.zorashopminishopee.module.oder.dto.response.CancelOrderResponse;
-import com.example.zorashopminishopee.module.oder.dto.response.CheckoutResponse;
-import com.example.zorashopminishopee.module.oder.dto.response.DetailOrderResponse;
-import com.example.zorashopminishopee.module.oder.dto.response.HistoryOrderResponse;
+import com.example.zorashopminishopee.module.oder.dto.response.*;
 import com.example.zorashopminishopee.module.oder.entity.Order;
 import com.example.zorashopminishopee.module.oder.entity.OrderItem;
 import com.example.zorashopminishopee.module.oder.enums.StatusType;
@@ -28,6 +25,7 @@ import com.example.zorashopminishopee.module.users.entity.Address;
 import com.example.zorashopminishopee.module.users.entity.Shops;
 import com.example.zorashopminishopee.module.users.entity.Users;
 import com.example.zorashopminishopee.module.users.repository.AddressRepository;
+import com.example.zorashopminishopee.module.users.repository.ShopRepository;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -46,6 +44,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
+    private final ShopRepository shopRepository;
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final CartItemRepository cartItemRepository;
@@ -171,5 +170,29 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findDetailByIdAndUserEmail(orderId, email)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng #" + orderId + " hoặc bạn không có quyền truy cập!"));
         return orderMapper.mapToDetailOrderResponse(order);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<OrderSummaryResponse> getOrderSummary(String email, StatusType type, int page, int size) {
+        Shops shop = shopRepository.findByUser_Email(email).orElseThrow(
+                () -> new ResourceNotFoundException("Tài khoản chưa đăng ký mở Shop!"));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"));
+        Specification<Order> spec = Specification.where(OrderSpecification.hasShop(shop))
+                .and(OrderSpecification.hasStatus(type));
+        Page<Order> orders = orderRepository.findAll(spec, pageable);
+        return orderMapper.mapToOrderSummaryResponse(orders);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SellerOrderDetailResponse getSellerOrderDetail(String email, Long orderId) {
+        shopRepository.findByUser_Email(email).orElseThrow(
+                () -> new ResourceNotFoundException("Tài khoản chưa đăng ký mở Shop!"));
+
+        Order order = orderRepository.findDetailByIdAndSellerEmail(orderId, email)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng #" + orderId + " hoặc không thuộc quyền quản lý của Shop bạn!"));
+
+        return orderMapper.mapToSellerOrderDetailResponse(order);
     }
 }
