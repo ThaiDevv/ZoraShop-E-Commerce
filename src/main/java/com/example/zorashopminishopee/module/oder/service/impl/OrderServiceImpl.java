@@ -16,6 +16,7 @@ import com.example.zorashopminishopee.module.oder.service.OrderService;
 import com.example.zorashopminishopee.module.oder.specification.OrderSpecification;
 import com.example.zorashopminishopee.module.payment.entity.Payment;
 import com.example.zorashopminishopee.module.payment.enums.PaymentMethod;
+import com.example.zorashopminishopee.module.payment.enums.PaymentStatus;
 import com.example.zorashopminishopee.module.payment.repository.PaymentRepository;
 import com.example.zorashopminishopee.module.payment.service.PaymentService;
 import com.example.zorashopminishopee.module.product.entity.ProductVariant;
@@ -37,6 +38,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -193,6 +195,57 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findDetailByIdAndSellerEmail(orderId, email)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng #" + orderId + " hoặc không thuộc quyền quản lý của Shop bạn!"));
 
+        return orderMapper.mapToSellerOrderDetailResponse(order);
+    }
+
+    @Override
+    @Transactional
+    public SellerOrderDetailResponse confirmOrder(String email, Long orderId) {
+        shopRepository.findByUser_Email(email).orElseThrow(
+                () -> new ResourceNotFoundException("Tài khoản chưa đăng ký mở Shop!"));
+        Order order = orderRepository.findDetailByIdAndSellerEmail(orderId, email)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng #" + orderId + " hoặc không thuộc quyền quản lý của Shop bạn!"));
+        if(!order.getStatus().canTransitionTo(StatusType.CONFIRMED)) {
+            throw new BadRequestException("Không thể chuyển đơn hàng từ " + order.getStatus() + " sang " + StatusType.CONFIRMED);
+        }
+        order.setStatus(StatusType.CONFIRMED);
+        orderRepository.save(order);
+        return orderMapper.mapToSellerOrderDetailResponse(order);
+    }
+
+    @Override
+    @Transactional
+    public SellerOrderDetailResponse shipOrder(String email, Long orderId) {
+        shopRepository.findByUser_Email(email).orElseThrow(
+                () -> new ResourceNotFoundException("Tài khoản chưa đăng ký mở Shop!"));
+        Order order = orderRepository.findDetailByIdAndSellerEmail(orderId, email)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng #" + orderId + " hoặc không thuộc quyền quản lý của Shop bạn!"));
+        if(!order.getStatus().canTransitionTo(StatusType.SHIPPING)) {
+            throw new BadRequestException("Không thể chuyển đơn hàng từ " + order.getStatus() + " sang " + StatusType.SHIPPING);
+        }
+        order.setStatus(StatusType.SHIPPING);
+        inventoryService.deliverOrder(order.getOrderItems());
+        orderRepository.save(order);
+        return orderMapper.mapToSellerOrderDetailResponse(order);
+    }
+
+    @Override
+    @Transactional
+    public SellerOrderDetailResponse deliverOrder(String email, Long orderId) {
+        shopRepository.findByUser_Email(email).orElseThrow(
+                () -> new ResourceNotFoundException("Tài khoản chưa đăng ký mở Shop!"));
+        Order order = orderRepository.findDetailByIdAndSellerEmail(orderId, email)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng #" + orderId + " hoặc không thuộc quyền quản lý của Shop bạn!"));
+        if(!order.getStatus().canTransitionTo(StatusType.DELIVERED)) {
+            throw new BadRequestException("Không thể chuyển đơn hàng từ " + order.getStatus() + " sang " + StatusType.DELIVERED);
+        }
+        order.setStatus(StatusType.DELIVERED);
+        if (order.getPayment() != null && order.getPayment().getMethod() == PaymentMethod.COD) {
+            order.getPayment().setPaidAt(LocalDateTime.now());
+            order.getPayment().setStatus(PaymentStatus.COMPLETED);
+        }
+
+        orderRepository.save(order);
         return orderMapper.mapToSellerOrderDetailResponse(order);
     }
 }

@@ -12,4 +12,7 @@ public interface OrderService {
     DetailOrderResponse detailOrder(String email, Long orderId);
     Page<OrderSummaryResponse> getOrderSummary(String email, StatusType type, int page, int size);
     SellerOrderDetailResponse getSellerOrderDetail(String email, Long orderId);
+    SellerOrderDetailResponse confirmOrder(String email, Long orderId);
+    SellerOrderDetailResponse shipOrder(String email, Long orderId);
+    SellerOrderDetailResponse deliverOrder(String email, Long orderId);
 }

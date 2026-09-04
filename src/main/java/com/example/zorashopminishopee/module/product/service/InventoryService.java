@@ -14,5 +14,6 @@ public interface InventoryService {
     void updateStock(ProductVariant productVariant, int quantity);
     void updateStockApi(String email, Long id, int quantity);
     void checkStockFromCartItem(List<CartItem> cartItems);
-    void cancelReserved(List<OrderItem> cartItems);
+    void cancelReserved(List<OrderItem> orderItems);
+    void deliverOrder(List<OrderItem> orderItems);
 }

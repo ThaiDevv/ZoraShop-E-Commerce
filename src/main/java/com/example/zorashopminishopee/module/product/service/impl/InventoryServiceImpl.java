@@ -129,4 +129,17 @@ public class InventoryServiceImpl implements InventoryService {
             inventoryLogService.cancelReversedLog(orderItem, orderItem.getOrder());
         });
     }
+
+    @Override
+    public void deliverOrder(List<OrderItem> orderItems) {
+        orderItems.forEach(orderItem -> {
+            Inventory inventory = orderItem.getVariant().getInventory();
+            inventory.setReserved(inventory.getReserved() - orderItem.getQuantity());
+            inventory.setQuantity(inventory.getQuantity() - orderItem.getQuantity());
+            em.flush();
+            em.refresh(inventory);
+            orderItem.getVariant().setStock(inventory.getAvailable());
+            inventoryLogService.deliverOrderLog(orderItem, orderItem.getOrder());
+        });
+    }
 }

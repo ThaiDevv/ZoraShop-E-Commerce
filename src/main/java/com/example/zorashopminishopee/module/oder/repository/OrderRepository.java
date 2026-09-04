@@ -30,8 +30,10 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
             LEFT JOIN FETCH o.shop s
             LEFT JOIN FETCH o.address a
             LEFT JOIN FETCH o.payment p
+            LEFT JOIN FETCH oi.variant v
+            LEFT JOIN FETCH v.inventory i
             WHERE o.id = :orderId AND s.user.email = :sellerEmail
-        """)
+       """)
     Optional<Order> findDetailByIdAndSellerEmail(@Param("orderId") Long orderId, @Param("sellerEmail") String sellerEmail);
 
     @Query("""

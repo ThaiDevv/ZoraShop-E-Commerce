@@ -14,4 +14,5 @@ public interface InventoryLogService {
     Page<InventoryLogResponse> getInventoryLogs(String email, Long variantId, int page, int size);
     void createInventoryLogInCartOrder(List<CartItem> cartItem, Order order);
     void cancelReversedLog(OrderItem orderItems,  Order order);
+    void deliverOrderLog(OrderItem orderItem, Order order);
 }

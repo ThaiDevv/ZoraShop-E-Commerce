@@ -99,4 +99,19 @@ public class InventoryLogServiceImpl implements InventoryLogService {
                 .build();
         inventoryLogRepository.save(log);
     }
+
+    @Override
+    public void deliverOrderLog(OrderItem orderItems, Order order) {
+        String reason = "Bỏ tạm giữ và xuất " + orderItems.getQuantity() + " sản phẩm cho đơn hàng #"  + order.getOrderNumber();
+        InventoryLog log = InventoryLog.builder()
+                .inventory(orderItems.getVariant().getInventory())
+                .type(InventoryLogType.OUT)
+                .quantityChange(orderItems.getQuantity())
+                .quantityAfter(orderItems.getVariant().getStock())
+                .reason(reason)
+                .referenceId(order.getId())
+                .createdAt(LocalDateTime.now())
+                .build();
+        inventoryLogRepository.save(log);
+    }
 }
