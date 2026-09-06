@@ -131,9 +131,14 @@ public class OrderServiceImpl implements OrderService {
                                 .build();
                         return orderItemRepository.save(item);
                     }
-            ).toList();
+            ).collect(Collectors.toList());
             order.setPayment(payment);
-            order.setOrderItems(orderItems);
+            if (order.getOrderItems() == null) {
+                order.setOrderItems(new ArrayList<>(orderItems));
+            } else {
+                order.getOrderItems().clear();
+                order.getOrderItems().addAll(orderItems);
+            }
             orderRepository.save(order);
             orders.add(order);
         });
