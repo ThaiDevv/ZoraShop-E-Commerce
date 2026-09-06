@@ -43,7 +43,7 @@ public class CartServiceImpl implements CartService {
             Users user = Optional.ofNullable(userRepository.findByEmail(email))
                     .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
 
-            Cart newCart = Cart.builder().user(user).build();
+            Cart newCart = Cart.builder().user(user).cartItems(new ArrayList<>()).build();
             return cartRepository.save(newCart);
         }
         return cart;
@@ -99,7 +99,10 @@ public class CartServiceImpl implements CartService {
                     .variant(variant)
                     .quantity(request.quantity())
                     .build();
-            cartItemRepository.save(cartItem);
+            cartItem = cartItemRepository.save(cartItem);
+            if (cart.getCartItems() == null) {
+                cart.setCartItems(new ArrayList<>());
+            }
             cart.getCartItems().add(cartItem);
         }
 
@@ -181,9 +184,14 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public void deleteCart(String email) {
-        Users user = userRepository.findByEmail(email);
-        cartRepository.removeByUser(user);
-        userRepository.save(user);
+        Cart cart = cartRepository.findByUser_Email(email);
+        if (cart != null) {
+            List<CartItem> items = cartItemRepository.findByCartIdWithProductAndShop(cart.getId());
+            cartItemRepository.deleteAll(items);
+            if (cart.getCartItems() != null) {
+                cart.getCartItems().clear();
+            }
+        }
     }
 
 }
