@@ -45,6 +45,8 @@ public class InventoryServiceImpl implements InventoryService {
                 .quantity(quantity)
                 .build();
         Inventory savedInventory = inventoryRepository.save(inventory);
+        productVariant.setStock(quantity);
+        productVariantRepository.save(productVariant);
         InventoryLog log = InventoryLog.builder()
                 .inventory(savedInventory)
                 .type(InventoryLogType.IN)
@@ -76,6 +78,9 @@ public class InventoryServiceImpl implements InventoryService {
                 ? "Thêm số lượng hàng tồn kho: " + delta
                 : "Giảm số lượng hàng tồn kho: " + Math.abs(delta);
         inventory.setQuantity(quantity);
+        inventoryRepository.save(inventory);
+        productVariant.setStock(quantity);
+        productVariantRepository.save(productVariant);
         InventoryLog log = InventoryLog.builder()
                 .inventory(inventory)
                 .quantityChange(Math.abs(delta))

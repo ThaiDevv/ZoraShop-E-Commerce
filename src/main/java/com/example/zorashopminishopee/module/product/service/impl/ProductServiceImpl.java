@@ -94,15 +94,19 @@ public class ProductServiceImpl implements ProductService {
     }
     public List<ProductVariantResponse> mapToProductVariantResponse(List<ProductVariant> productVariants) {
         return productVariants.stream().map(
-                ProductVariant ->
-                        new ProductVariantResponse(
-                                ProductVariant.getId(),
-                                ProductVariant.getVariantName(),
-                                ProductVariant.getSku(),
-                                ProductVariant.getPrice(),
-                                ProductVariant.getStock(),
-                                ProductVariant.getImageUrl()
-                        )
+                pv -> {
+                    int currentStock = pv.getInventory() != null && pv.getInventory().getQuantity() != null
+                            ? pv.getInventory().getQuantity()
+                            : (pv.getStock() != null ? pv.getStock() : 0);
+                    return new ProductVariantResponse(
+                            pv.getId(),
+                            pv.getVariantName(),
+                            pv.getSku(),
+                            pv.getPrice(),
+                            currentStock,
+                            pv.getImageUrl()
+                    );
+                }
         ).toList();
     }
     public ProductResponse mapToResponse(Product product) {
