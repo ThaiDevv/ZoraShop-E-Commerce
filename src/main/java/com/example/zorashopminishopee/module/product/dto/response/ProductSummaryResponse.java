@@ -12,6 +12,7 @@ public record ProductSummaryResponse(
         Double ratingAvg,
         Integer ratingCount,
         Integer soldCount,
-        String shopName
+        String shopName,
+        Long shopId
 ){
 }

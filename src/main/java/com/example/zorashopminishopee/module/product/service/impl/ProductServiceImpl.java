@@ -208,11 +208,12 @@ public class ProductServiceImpl implements ProductService {
                 product.getSlug(),
                 product.getPrice(),
                 product.getOriginalPrice(),
-               getPrimaryImageUrl(product.getImages()),
+                getPrimaryImageUrl(product.getImages()),
                 product.getRatingAvg(),
                 product.getRatingCount(),
                 product.getSoldCount(),
-                product.getShop().getName()
+                product.getShop() != null ? product.getShop().getName() : null,
+                product.getShop() != null ? product.getShop().getId() : null
         );
     }
     @Override
@@ -226,6 +227,7 @@ public class ProductServiceImpl implements ProductService {
         Specification<Product> spec = Specification
                 .where(ProductSpecification.keywordContains(request.keyword()))
                 .and(ProductSpecification.hasCategory(request.categoryId()))
+                .and(ProductSpecification.hasShop(request.shopId()))
                 .and(ProductSpecification.priceBetween(request.minPrice(), request.maxPrice()))
                 .and((root, query, cb)
                         -> cb.equal(root.get("status"), "ACTIVE"));
@@ -236,9 +238,17 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public ProductResponse getProduct(String slug) {
-        Product product = productRepository.findBySlug(slug).orElseThrow(
-                () -> new ResourceNotFoundException("Product not found!")
-        );
+        Product product = productRepository.findBySlug(slug).orElseGet(() -> {
+            try {
+                Long id = Long.parseLong(slug);
+                return productRepository.findById(id).orElse(null);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        });
+        if (product == null) {
+            throw new ResourceNotFoundException("Product not found!");
+        }
         long currentViews = product.getViewCount() != null ? product.getViewCount() : 0L;
         product.setViewCount(currentViews + 1);
         productRepository.save(product);

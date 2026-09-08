@@ -26,6 +26,14 @@ public class ProductSpecification {
             return cb.equal(root.get("category").get("id"), categoryId);
         };
     }
+    public static Specification<Product> hasShop(Long shopId) {
+        return (root, query, cb) -> {
+            if (shopId == null) {
+                return null;
+            }
+            return cb.equal(root.get("shop").get("id"), shopId);
+        };
+    }
     public static Specification<Product> priceBetween(BigDecimal minPrice, BigDecimal maxPrice) {
         return (root, query, cb) -> {
             if (minPrice != null && maxPrice != null) {

@@ -8,9 +8,10 @@ import java.math.BigDecimal;
 public record FilterSortRequest(
         String keyword,
         Long categoryId,
+        Long shopId,
         BigDecimal minPrice,
         BigDecimal maxPrice,
         ProductSortBy sortBy,
         ProductSortDir sortDir
-        ) {
+) {
 }
