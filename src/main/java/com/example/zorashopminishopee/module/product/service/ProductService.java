@@ -1,5 +1,6 @@
 package com.example.zorashopminishopee.module.product.service;
 
+import com.example.zorashopminishopee.module.oder.entity.OrderItem;
 import com.example.zorashopminishopee.module.product.dto.request.CreateProductRequest;
 import com.example.zorashopminishopee.module.product.dto.request.FilterSortRequest;
 import com.example.zorashopminishopee.module.product.dto.request.UpdateProductRequest;
@@ -12,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 
 public interface ProductService {
@@ -21,4 +23,5 @@ public interface ProductService {
     ProductResponse updateProduct(String email, String slug, UpdateProductRequest request);
     void deleteProduct(String email, String slug);
     Page<ProductSummaryResponse> getMyProducts(String email, int page, int size);
+    void increaseSoldCount(List<OrderItem> orderItems);
 }

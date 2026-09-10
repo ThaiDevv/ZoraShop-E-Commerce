@@ -6,6 +6,7 @@ import com.example.zorashopminishopee.common.exception.ForbiddenException;
 import com.example.zorashopminishopee.common.exception.ResourceNotFoundException;
 import com.example.zorashopminishopee.module.catagory.entity.Category;
 import com.example.zorashopminishopee.module.catagory.repository.CategoryRepository;
+import com.example.zorashopminishopee.module.oder.entity.OrderItem;
 import com.example.zorashopminishopee.module.product.dto.request.*;
 import com.example.zorashopminishopee.module.product.dto.response.*;
 import com.example.zorashopminishopee.module.product.enums.ProductSortBy;
@@ -407,6 +408,23 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Shop not found with email: " + email));
         Page<Product> products = productRepository.findByShop(shop, pageable);
         return products.map(this::mapToProductSummaryResponse);
+    }
+
+    @Override
+    public void increaseSoldCount(List<OrderItem> orderItems) {
+        if (orderItems == null || orderItems.isEmpty()) {
+            return;
+        }
+        Map<Long, Integer> productQtyMap = new HashMap<>();
+        for (OrderItem item : orderItems) {
+            if (item != null && item.getProductId() != null && item.getQuantity() != null && item.getQuantity() > 0) {
+                productQtyMap.merge(item.getProductId(), item.getQuantity(), Integer::sum);
+            }
+        }
+
+        productQtyMap.forEach((productId, totalQty) -> {
+            productRepository.incrementSoldCount(productId, totalQty);
+        });
     }
 
 }

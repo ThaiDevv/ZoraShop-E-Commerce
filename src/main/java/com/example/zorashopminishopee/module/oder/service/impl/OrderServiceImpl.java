@@ -22,6 +22,7 @@ import com.example.zorashopminishopee.module.payment.service.PaymentService;
 import com.example.zorashopminishopee.module.product.entity.ProductVariant;
 import com.example.zorashopminishopee.module.product.service.InventoryLogService;
 import com.example.zorashopminishopee.module.product.service.InventoryService;
+import com.example.zorashopminishopee.module.product.service.ProductService;
 import com.example.zorashopminishopee.module.users.entity.Address;
 import com.example.zorashopminishopee.module.users.entity.Shops;
 import com.example.zorashopminishopee.module.users.entity.Users;
@@ -56,6 +57,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderMapper orderMapper;
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
     private final PaymentService paymentService;
+    private final ProductService productService;
 
     public String generateOrderNumber() {
         String datePart = LocalDate.now().format(DATE_FORMAT);
@@ -250,6 +252,7 @@ public class OrderServiceImpl implements OrderService {
             order.getPayment().setStatus(PaymentStatus.COMPLETED);
         }
 
+        productService.increaseSoldCount(order.getOrderItems());
         orderRepository.save(order);
         return orderMapper.mapToSellerOrderDetailResponse(order);
     }
