@@ -55,6 +55,8 @@ public class UserServiceImpl implements UserService {
                 .fullName(registerRequest.getFullname())
                 .password(encodedPassword)
                 .phone(registerRequest.getPhone())
+                .dateOfBirth(registerRequest.getBirthDay())
+                .sex(registerRequest.getSex())
                 .role(UserRole.BUYER)
                 .isActive(true)
                 .build();
@@ -76,6 +78,8 @@ public class UserServiceImpl implements UserService {
                 .avatarUrl(user.getAvatarUrl())
                 .isActive(user.getIsActive())
                 .role(user.getRole())
+                .dateOfBirth(user.getDateOfBirth())
+                .sex(user.getSex())
                 .build();
     }
 
@@ -93,6 +97,8 @@ public class UserServiceImpl implements UserService {
                 .avatarUrl(user.getAvatarUrl())
                 .isActive(user.getIsActive())
                 .role(user.getRole())
+                .sex(user.getSex())
+                .dateOfBirth(user.getDateOfBirth())
                 .build();
     }
 
@@ -120,7 +126,6 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw new ResourceNotFoundException("User not found");
         }
-
         if (request.getPhone() != null && !request.getPhone().equals(user.getPhone())) {
             if (userRepository.existsByPhone(request.getPhone())) {
                 throw new DuplicateResourceException("Phone already exists");
@@ -129,7 +134,8 @@ public class UserServiceImpl implements UserService {
         }
 
         user.setFullName(request.getFullName());
-        user.setAvatarUrl(request.getAvatarUrl());
+        user.setSex(request.getSex());
+        user.setDateOfBirth(request.getBirthDate());
         userRepository.save(user);
 
         return UserResponse.builder()
@@ -139,6 +145,8 @@ public class UserServiceImpl implements UserService {
                 .avatarUrl(user.getAvatarUrl())
                 .isActive(user.getIsActive())
                 .role(user.getRole())
+                .dateOfBirth(user.getDateOfBirth())
+                .sex(user.getSex())
                 .build();
     }
 
@@ -205,6 +213,8 @@ public class UserServiceImpl implements UserService {
                                 .avatarUrl(user.getAvatarUrl())
                                 .isActive(user.getIsActive())
                                 .role(user.getRole())
+                                .sex(user.getSex())
+                                .dateOfBirth(user.getDateOfBirth())
                                 .build()
                 );
         return userResponseList;

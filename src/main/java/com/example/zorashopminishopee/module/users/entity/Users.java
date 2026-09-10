@@ -3,10 +3,12 @@ package com.example.zorashopminishopee.module.users.entity;
 import com.example.zorashopminishopee.common.base.BaseEntity;
 import com.example.zorashopminishopee.module.cart.entity.Cart;
 import com.example.zorashopminishopee.module.oder.entity.Order;
+import com.example.zorashopminishopee.module.oder.enums.Sex;
 import com.example.zorashopminishopee.module.users.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Entity
@@ -29,6 +31,13 @@ public class Users extends BaseEntity {
 
     @Column(name = "phone", unique = true, nullable = false)
     private String phone;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sex")
+    private Sex sex;
 
     @Builder.Default
     @Column(name = "avatar_url")
@@ -58,4 +67,5 @@ public class Users extends BaseEntity {
 
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
     private List<Order> orders;
+
 }
