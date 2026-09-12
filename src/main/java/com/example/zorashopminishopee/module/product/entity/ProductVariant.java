@@ -2,6 +2,7 @@ package com.example.zorashopminishopee.module.product.entity;
 
 import com.example.zorashopminishopee.module.cart.entity.CartItem;
 import com.example.zorashopminishopee.module.oder.entity.OrderItem;
+import com.example.zorashopminishopee.module.review.entity.ReviewItem;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -49,4 +50,7 @@ public class ProductVariant {
 
     @OneToMany(mappedBy = "variant", fetch = FetchType.LAZY)
     private List<OrderItem> orderItems;
+
+    @OneToMany(mappedBy = "productVariant")
+    private List<ReviewItem> reviewItems;
 }

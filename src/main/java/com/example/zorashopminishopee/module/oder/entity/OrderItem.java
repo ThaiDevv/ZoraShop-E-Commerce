@@ -1,6 +1,7 @@
 package com.example.zorashopminishopee.module.oder.entity;
 
 import com.example.zorashopminishopee.module.product.entity.ProductVariant;
+import com.example.zorashopminishopee.module.review.entity.ReviewItem;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -47,4 +48,7 @@ public class OrderItem {
 
     @Column(name = "subtotal", precision = 15, scale = 2, nullable = false)
     private BigDecimal subtotal;
+
+    @OneToOne(mappedBy = "orderItem")
+    private ReviewItem reviewItem;
 }

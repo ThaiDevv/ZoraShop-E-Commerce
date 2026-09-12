@@ -2,6 +2,7 @@ package com.example.zorashopminishopee.module.product.entity;
 
 import com.example.zorashopminishopee.common.base.BaseEntity;
 import com.example.zorashopminishopee.module.catagory.entity.Category;
+import com.example.zorashopminishopee.module.review.entity.Review;
 import com.example.zorashopminishopee.module.users.entity.Shops;
 import jakarta.persistence.*;
 import lombok.*;
@@ -69,4 +70,7 @@ public class Product extends BaseEntity {
     @Builder.Default
     @Column(name = "status", nullable = false, length = 20)
     private String status = "ACTIVE";
+
+    @OneToOne(mappedBy = "product")
+    private Review review;
 }
