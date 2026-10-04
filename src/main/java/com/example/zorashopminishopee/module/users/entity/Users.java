@@ -21,7 +21,7 @@ import java.util.List;
 @Builder
 public class Users extends BaseEntity {
 
-    @Column(name = "email", unique = true)
+    @Column(name = "email", unique = true, nullable = false)
     private String email;
 
     @Column(name = "password", nullable = false)
@@ -53,23 +53,7 @@ public class Users extends BaseEntity {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
-    @OneToMany(
-            mappedBy = "user",
-            cascade = CascadeType.ALL,
-            orphanRemoval = true
-    )
-    private List<Address> addresses;
-
     @OneToOne(mappedBy = "user")
     private Shops shops;
-
-    @OneToOne(mappedBy = "user")
-    private Cart cart;
-
-    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
-    private List<Order> orders;
-
-    @OneToMany(mappedBy = "user")
-    private List<ReviewItem>  reviewItems;
 
 }
