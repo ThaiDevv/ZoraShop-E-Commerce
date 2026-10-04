@@ -42,6 +42,7 @@ public class SecurityConfig {
                 "/api/v1/shops/**",
                 "/v3/api-docs/**",
                 "/swagger-ui/**",
+                "/api/v1/auth/refresh-token",
                 "/swagger-ui.html"
         ).permitAll().anyRequest().authenticated());
         http.csrf(AbstractHttpConfigurer :: disable);
