@@ -5,11 +5,13 @@ import com.example.zorashopminishopee.module.users.dto.request.LoginRequest;
 import com.example.zorashopminishopee.module.users.dto.request.RefreshTokenRequest;
 import com.example.zorashopminishopee.module.users.dto.request.RegisterRequest;
 import com.example.zorashopminishopee.module.users.dto.response.LoginResponse;
+import com.example.zorashopminishopee.module.users.dto.response.RefreshTokenResponse;
 import com.example.zorashopminishopee.module.users.dto.response.RegisterResponse;
 import com.example.zorashopminishopee.module.users.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -32,8 +34,8 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
     @PostMapping("/refresh-token")
-    public  ResponseEntity<ApiResponse<LoginResponse>> refreshToken(@Valid @RequestBody RefreshTokenRequest refreshToken) {
-        LoginResponse  response = userService.refreshToken(refreshToken);
+    public  ResponseEntity<ApiResponse<RefreshTokenResponse>> refreshToken(@Valid @RequestBody RefreshTokenRequest refreshToken) {
+        RefreshTokenResponse response = userService.refreshToken(refreshToken);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }
