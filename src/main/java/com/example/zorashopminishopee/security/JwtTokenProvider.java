@@ -34,6 +34,7 @@ public class JwtTokenProvider {
     private Claims parse(String token, SecretKey key){
         return  Jwts.parser()
                 .verifyWith(key)
+                .clockSkewSeconds(30)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();

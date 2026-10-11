@@ -20,6 +20,7 @@ import com.example.zorashopminishopee.security.JwtTokenProvider;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -34,8 +35,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -202,19 +205,40 @@ public class UserServiceImpl implements UserService {
         refreshTokenRepository.save(reToken);
         return jwtTokenProvider.generateRefreshToken(userDetails, jtiRefresh, Date.from(expirationRefresh));
     }
-    @Transactional
+    @Transactional(noRollbackFor = UnauthorizedException.class)
     @Override
     public RefreshTokenResponse refreshToken(RefreshTokenRequest refreshToken) {
+        Claims claims;
         try {
-            Claims claims = jwtTokenProvider.parseRefreshToken(refreshToken.getRefreshToken());
-            CustomUserDetails userDetails = (CustomUserDetails) customUserDetailsService.loadUserByUsername(claims.getSubject());
-            Users users = userDetails.getUser();
-            String refreshToken1 = issueRefreshToken(users, userDetails);
-            String accessToken = issueAccessToken(userDetails);
-            return new RefreshTokenResponse(accessToken, refreshToken1);
+            claims = jwtTokenProvider.parseRefreshToken(refreshToken.getRefreshToken());
         } catch (JwtException e) {
             throw new UnauthorizedException("Token is invalid");
         }
+        String jti = claims.getId();
+        CustomUserDetails userDetails = (CustomUserDetails) customUserDetailsService.loadUserByUsername(claims.getSubject());
+        Users users = userDetails.getUser();
+        if(!users.getIsActive()){
+            throw new UnauthorizedException("user have been blocked");
+        }
+        int rowChange = refreshTokenRepository.revokeJti(jti, Instant.now().minusSeconds(30));
+        if(rowChange == 0){
+            RefreshToken preRefreshToken = refreshTokenRepository.findByJti(jti).orElseThrow(
+                    () -> new UnauthorizedException("User don't have this refresh")
+            );
+            if(claims.getExpiration().toInstant().isBefore(Instant.now().minusSeconds(30))){
+                throw new UnauthorizedException("token is expired");
+            }
+            if (preRefreshToken.getIsRevoked()){
+                int countRevoked = refreshTokenRepository.revokeAllJti(users);
+                log.warn("The system has revoked {} tokens from UserID: {}.", countRevoked, users.getId());
+                throw new UnauthorizedException("RefreshToken is revoked");
+            }else {
+                throw new UnauthorizedException("Token is invalid");
+            }
+        }
+        String refreshToken1 = issueRefreshToken(users, userDetails);
+        String accessToken = issueAccessToken(userDetails);
+        return new RefreshTokenResponse(accessToken, refreshToken1);
     }
     @Override
     @Transactional
