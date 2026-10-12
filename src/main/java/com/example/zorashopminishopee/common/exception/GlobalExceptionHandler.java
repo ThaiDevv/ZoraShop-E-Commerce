@@ -70,7 +70,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UnauthorizedException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ErrorResponse handleUnauthorized(UnauthorizedException ex) {
-        log.warn("Unauthorized access: {}", ex.getMessage());
+        Throwable cause = ex.getCause();
+        if (cause != null) {
+            log.warn(
+                    "Unauthorized access: {} (cause: {}: {})",
+                    ex.getMessage(),
+                    cause.getClass().getSimpleName(),
+                    cause.getMessage()
+            );
+
+            log.debug("Unauthorized access stack trace", ex);
+        } else {
+            log.warn("Unauthorized access: {}", ex.getMessage());
+        }
         return ErrorResponse.of(
                 HttpStatus.UNAUTHORIZED.value(),
                 HttpStatus.UNAUTHORIZED.getReasonPhrase(),

@@ -1,5 +1,6 @@
 package com.example.zorashopminishopee.security;
 
+import ch.qos.logback.core.util.StringUtil;
 import com.example.zorashopminishopee.common.exception.UnauthorizedException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -16,6 +17,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -37,6 +39,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         String  token = authHeader.substring(7);
+        if(!StringUtils.hasText(token)){
+            filterChain.doFilter(request, response);
+            return;
+        }
         try{
             Claims claims = jwtTokenProvider.parseAccessToken(token);
             String email = claims.getSubject();

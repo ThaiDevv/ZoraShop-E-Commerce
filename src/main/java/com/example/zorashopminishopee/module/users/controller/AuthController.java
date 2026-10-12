@@ -13,10 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -37,5 +34,15 @@ public class AuthController {
     public  ResponseEntity<ApiResponse<RefreshTokenResponse>> refreshToken(@Valid @RequestBody RefreshTokenRequest refreshToken) {
         RefreshTokenResponse response = userService.refreshToken(refreshToken);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest refreshToken){
+        userService.logout(refreshToken);
+        return ResponseEntity.noContent().build();
+    }
+    @PostMapping("/logout-all")
+    public ResponseEntity<Void> logoutAll(Authentication authentication){
+        userService.logoutAll(authentication);
+        return ResponseEntity.noContent().build();
     }
 }

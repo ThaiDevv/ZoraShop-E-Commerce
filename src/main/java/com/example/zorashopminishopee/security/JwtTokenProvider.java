@@ -52,8 +52,6 @@ public class JwtTokenProvider {
                 throw new JwtException("Don't use Access token to parse Refresh token");
             }
             return claims;
-
-
     }
     //generate
     public String generateRefreshToken(UserDetails userDetails, String jti, Date expirationAt) {
