@@ -8,8 +8,6 @@ import com.example.zorashopminishopee.module.users.dto.response.UserResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.security.core.Authentication;
 
-import java.util.List;
-
 public interface UserService {
     RegisterResponse registerUser(RegisterRequest registerRequest);
     UserResponse getUserProfile(Long userId);
@@ -21,4 +19,7 @@ public interface UserService {
     String uploadAvatar(String email, String url);
     Page<UserResponse> getAllUsers(int page, int size);
     UserResponse changeActive(String email);
+    void logout(RefreshTokenRequest refreshToken);
+    void logoutAll(Authentication authentication);
+
 }

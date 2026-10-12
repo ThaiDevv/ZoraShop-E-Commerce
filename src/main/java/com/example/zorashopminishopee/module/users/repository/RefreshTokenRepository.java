@@ -13,14 +13,14 @@ import java.util.Optional;
 
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
     Optional<RefreshToken> findByJti(String jti);
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE RefreshToken rf SET rf.isRevoked = true " +
             "WHERE rf.jti = :jti " +
             "AND rf.isRevoked = false " +
             "AND rf.expirationDate > :now")
     int revokeJti(@Param("jti") String jti, @Param("now")Instant now);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE RefreshToken rf SET rf.isRevoked = true " +
             "WHERE rf.user = :user " +
             "AND rf.isRevoked = false")

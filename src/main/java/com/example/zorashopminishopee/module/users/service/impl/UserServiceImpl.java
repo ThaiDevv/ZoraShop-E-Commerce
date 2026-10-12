@@ -35,7 +35,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Date;
-import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -116,20 +115,31 @@ public class UserServiceImpl implements UserService {
                 .build();
     }
 
-    @Override
     @Transactional
-    public Boolean changePassword(String email, ChangePasswordRequest request) {
+    @Override
+    public Boolean changePassword(
+            String email,
+            ChangePasswordRequest request
+    ) {
         Users user = userRepository.findByEmail(email);
+
         if (user == null) {
             throw new ResourceNotFoundException("User not found");
         }
 
-        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
-            throw new UnauthorizedException("Old password doesn't match");
+        if (!passwordEncoder.matches(
+                request.getOldPassword(),
+                user.getPassword()
+        )) {
+            throw new UnauthorizedException(
+                    "Old password doesn't match"
+            );
         }
 
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        userRepository.save(user);
+        user.setPassword(
+                passwordEncoder.encode(request.getNewPassword())
+        );
+        refreshTokenRepository.revokeAllJti(user);
         return true;
     }
 
@@ -212,7 +222,7 @@ public class UserServiceImpl implements UserService {
         try {
             claims = jwtTokenProvider.parseRefreshToken(refreshToken.getRefreshToken());
         } catch (JwtException e) {
-            throw new UnauthorizedException("Token is invalid");
+            throw new UnauthorizedException("Token is invalid", e);
         }
         String jti = claims.getId();
         CustomUserDetails userDetails = (CustomUserDetails) customUserDetailsService.loadUserByUsername(claims.getSubject());
@@ -280,6 +290,7 @@ public class UserServiceImpl implements UserService {
             throw new ResourceNotFoundException("User not found");
         }
         user.setIsActive(!user.getIsActive());
+        refreshTokenRepository.revokeAllJti(user);
         return UserResponse.builder()
                 .fullName(user.getFullName())
                 .email(user.getEmail())
@@ -288,5 +299,26 @@ public class UserServiceImpl implements UserService {
                 .isActive(user.getIsActive())
                 .role(user.getRole())
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public void logout(RefreshTokenRequest refreshToken) {
+        String reToken = refreshToken.getRefreshToken();
+        Claims claims;
+        try {
+             claims = jwtTokenProvider.parseRefreshToken(reToken);
+        }catch (JwtException e){
+            return;
+        }
+        String jti = claims.getId();
+        refreshTokenRepository.revokeJti(jti, Instant.now().minusSeconds(30));
+    }
+    @Override
+    @Transactional
+    public void logoutAll(Authentication authentication) {
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        Users users = userDetails.getUser();
+        refreshTokenRepository.revokeAllJti(users);
     }
 }
