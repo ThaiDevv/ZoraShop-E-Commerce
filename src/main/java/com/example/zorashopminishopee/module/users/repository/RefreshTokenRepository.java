@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
@@ -26,6 +25,6 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
             "AND rf.isRevoked = false")
     int revokeAllJti(@Param("user") Users user);
     @Modifying()
-    @Query("DELETE FROM RefreshToken rt WHERE rt.expirationDate < :now")
-    int deleteExpiredJti(@Param("now") Instant now);
+    @Query("DELETE FROM RefreshToken rt WHERE rt.expirationDate < :cutoff")
+    int deleteExpiredBefore(@Param("cutoff") Instant cutoff);
 }

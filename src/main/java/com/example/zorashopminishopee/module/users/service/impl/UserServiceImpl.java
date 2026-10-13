@@ -33,8 +33,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.UUID;
 
@@ -42,7 +43,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
-
+    @Value("${jobs.cleanup.retention:1d}")
+    private Duration cleanupRetention;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
@@ -325,8 +327,8 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @Override
     public void deleteExpiredToken() {
-        Instant now = Instant.now().minus(1, ChronoUnit.DAYS);
-        int countDelete = refreshTokenRepository.deleteExpiredJti(now);
+        Instant cutoff = Instant.now().minus(cleanupRetention);
+        int countDelete = refreshTokenRepository.deleteExpiredBefore(cutoff);
         log.info("Deleted {} expired refresh tokens", countDelete);
     }
 }

@@ -32,3 +32,4 @@ jobs:
   time-zone: Asia/Bangkok
   cleanup:
     cron: "0 0 3 * * *"
+    retention: 1d

@@ -1294,6 +1294,297 @@ Phải tự hỏi:
 [ ] Log, metric, alert và test nghiệp vụ trực tiếp
 ```
 
+### 6.4. Các cách lấy giá trị từ `application.yml`
+
+Spring Boot đọc YAML rồi đưa các giá trị vào `Environment`. Cấu trúc lồng nhau được chuyển thành key dùng dấu chấm:
+
+```yaml
+jobs:
+  cleanup:
+    cron: "0 0 3 * * *"
+    retention: 1d
+```
+
+```text
+jobs.cleanup.cron
+jobs.cleanup.retention
+```
+
+#### Cách 1: `@Value` — một vài giá trị đơn lẻ
+
+```java
+@Value("${jobs.cleanup.cron}")
+private String cron;
+
+@Value("${jobs.cleanup.retention:7d}")
+private Duration retention;
+```
+
+Phần sau dấu `:` là giá trị mặc định. Không có property và không có default thì application thường fail khi khởi động.
+
+Có thể inject qua constructor thay vì field:
+
+```java
+@Component
+public class CleanupJob {
+    private final Duration retention;
+
+    public CleanupJob(
+            @Value("${jobs.cleanup.retention:7d}")
+            Duration retention
+    ) {
+        this.retention = retention;
+    }
+}
+```
+
+`@Value` phù hợp khi class chỉ cần một hoặc hai key rời rạc. Nó hỗ trợ placeholder và SpEL, nhưng nhiều field `@Value` sẽ phân tán config, khó validate và khó refactor.
+
+#### Cách 2: `@ConfigurationProperties` — cách khuyên dùng cho một nhóm config
+
+```java
+@ConfigurationProperties(prefix = "jobs.cleanup")
+@Validated
+public record CleanupProperties(
+        @NotBlank String cron,
+        @NotNull Duration retention
+) {}
+```
+
+Đăng ký properties bean bằng một trong hai cách:
+
+```java
+@SpringBootApplication
+@ConfigurationPropertiesScan
+public class Application {}
+```
+
+hoặc đăng ký cụ thể:
+
+```java
+@Configuration
+@EnableConfigurationProperties(CleanupProperties.class)
+public class CleanupConfiguration {}
+```
+
+Sau đó inject như bean bình thường:
+
+```java
+@Service
+@RequiredArgsConstructor
+public class CleanupService {
+    private final CleanupProperties properties;
+
+    public void cleanup() {
+        Duration retention = properties.retention();
+    }
+}
+```
+
+Ưu điểm:
+
+- Type-safe: tự bind `Duration`, `DataSize`, enum, list, map và object lồng nhau.
+- Gom các key liên quan vào một chỗ.
+- Hỗ trợ relaxed binding: `retention-period`, `retentionPeriod` và environment variable có thể map vào cùng field.
+- Kết hợp `@Validated`, `@NotNull`, `@NotBlank`, `@Min` để application fail-fast khi config sai.
+- Dễ inject trong test bằng một object config rõ ràng.
+
+Với nhóm JWT trong project, nên gom các `@Value` đang nằm ở nhiều class thành properties object:
+
+```yaml
+jwt:
+  access:
+    secret: ${JWT_ACCESS_SECRET}
+    expiration: 15m
+  refresh:
+    secret: ${JWT_REFRESH_SECRET}
+    expiration: 7d
+```
+
+```java
+@ConfigurationProperties(prefix = "jwt")
+@Validated
+public record JwtProperties(
+        @Valid Access access,
+        @Valid Refresh refresh
+) {
+    public record Access(
+            @NotBlank String secret,
+            @NotNull Duration expiration
+    ) {}
+
+    public record Refresh(
+            @NotBlank String secret,
+            @NotNull Duration expiration
+    ) {}
+}
+```
+
+#### Cách 3: inject trực tiếp placeholder vào annotation
+
+Không nhất thiết phải tạo field nếu annotation tự hỗ trợ property placeholder:
+
+```java
+@Scheduled(
+        cron = "${jobs.cleanup.cron}",
+        zone = "${jobs.time-zone:UTC}"
+)
+public void cleanup() {}
+```
+
+Cách này phù hợp với thuộc tính của annotation như `@Scheduled`, `@ConditionalOnProperty` hoặc một số annotation cấu hình khác.
+
+#### Cách 4: `Environment` — đọc programmatically
+
+```java
+@Component
+@RequiredArgsConstructor
+public class ConfigReader {
+    private final Environment environment;
+
+    public void read() {
+        String cron = environment.getRequiredProperty(
+                "jobs.cleanup.cron"
+        );
+
+        Duration retention = environment.getProperty(
+                "jobs.cleanup.retention",
+                Duration.class,
+                Duration.ofDays(7)
+        );
+    }
+}
+```
+
+- `getRequiredProperty()` ném exception nếu thiếu.
+- `getProperty()` có thể trả `null`, nhận kiểu cần convert và default value.
+- Phù hợp với code hạ tầng, condition hoặc khi tên key được tạo động. Business code thông thường nên dùng `@ConfigurationProperties`.
+
+#### Cách 5: `Binder` — bind programmatically nâng cao
+
+```java
+CleanupProperties properties = Binder.get(environment)
+        .bind(
+                "jobs.cleanup",
+                Bindable.of(CleanupProperties.class)
+        )
+        .orElseThrow();
+```
+
+`Binder` hữu ích khi prefix được xác định lúc runtime, viết thư viện/framework hoặc cần bind list/map/object phức tạp bằng code. Application thông thường hiếm khi cần dùng trực tiếp.
+
+#### Cách 6: `@ConfigurationProperties` trên `@Bean` bên thứ ba
+
+Khi class thuộc thư viện và không thể gắn annotation lên nó:
+
+```java
+@Bean
+@ConfigurationProperties(prefix = "payment.client")
+public PaymentClientOptions paymentClientOptions() {
+    return new PaymentClientOptions();
+}
+```
+
+Spring bind các property tương ứng qua setter của object bên thứ ba.
+
+#### Placeholder environment variable trong YAML
+
+```yaml
+jwt:
+  access:
+    secret: ${JWT_ACCESS_SECRET}
+    expiration: ${JWT_ACCESS_EXPIRATION:15m}
+```
+
+- Property mà Java đọc vẫn là `jwt.access.secret` và `jwt.access.expiration`.
+- `JWT_ACCESS_SECRET` là nguồn giá trị từ environment; thiếu secret thì application fail vì không có default.
+- `JWT_ACCESS_EXPIRATION` có default `15m`.
+
+Environment variable, profile-specific YAML và command-line argument có thể override giá trị trong `application.yml`. Ví dụ:
+
+```bash
+java -jar app.jar --jobs.cleanup.retention=30d
+```
+
+#### Chọn cách nào?
+
+| Trường hợp | Nên dùng |
+|---|---|
+| Một key đơn giản | `@Value` |
+| Một nhóm config của module | `@ConfigurationProperties` |
+| Giá trị nằm ngay trong annotation | `${...}` trực tiếp |
+| Key động hoặc code hạ tầng | `Environment` |
+| Bind động/phức tạp bằng code | `Binder` |
+| Cấu hình object của thư viện | `@ConfigurationProperties` trên `@Bean` |
+
+Quy tắc thực tế: bắt đầu bằng `@Value` cho một key; khi có từ hai đến ba key cùng prefix hoặc cần validation/type safety thì chuyển sang `@ConfigurationProperties`.
+
+#### Không thể đặt `@Value` trực tiếp trong biểu thức Java
+
+Cách này không hợp lệ:
+
+```java
+Instant cutoff = Instant.now().minus(
+        @Value("${jobs.cleanup.retention}"),
+        ChronoUnit.DAYS
+);
+```
+
+`@Value` là annotation dùng tại **điểm injection** như field hoặc constructor parameter; nó không phải một biểu thức trả về giá trị. Trong khi đó `Instant.minus(long, TemporalUnit)` cần đối số đầu tiên là một số `long` thật.
+
+Cách sửa tối thiểu khi YAML lưu số ngày:
+
+```yaml
+jobs:
+  cleanup:
+    retention: 1
+```
+
+```java
+@Value("${jobs.cleanup.retention:1}")
+private long cleanupRetentionDays;
+
+@Transactional
+public void deleteExpiredToken() {
+    Instant cutoff = Instant.now().minus(
+            cleanupRetentionDays,
+            ChronoUnit.DAYS
+    );
+
+    int deleted = refreshTokenRepository.deleteExpiredBefore(cutoff);
+    log.info("Deleted {} expired refresh tokens", deleted);
+}
+```
+
+Cách type-safe hơn là để đơn vị ngay trong YAML:
+
+```yaml
+jobs:
+  cleanup:
+    retention: 1d
+```
+
+```java
+@ConfigurationProperties(prefix = "jobs.cleanup")
+public record CleanupProperties(Duration retention) {}
+```
+
+```java
+private final CleanupProperties cleanupProperties;
+
+@Transactional
+public void deleteExpiredToken() {
+    Instant cutoff = Instant.now().minus(
+            cleanupProperties.retention()
+    );
+
+    int deleted = refreshTokenRepository.deleteExpiredBefore(cutoff);
+    log.info("Deleted {} expired refresh tokens", deleted);
+}
+```
+
+Dùng `Duration` tránh trường hợp người đọc không biết số `1` mang đơn vị ngày, giờ hay mili-giây, đồng thời không cần truyền `ChronoUnit.DAYS` ở nhiều nơi.
+
 ---
 
 ## 7. Bảo mật cấu hình và Git
