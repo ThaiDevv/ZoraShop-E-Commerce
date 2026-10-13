@@ -21,5 +21,5 @@ public interface UserService {
     UserResponse changeActive(String email);
     void logout(RefreshTokenRequest refreshToken);
     void logoutAll(Authentication authentication);
-
+    void deleteExpiredToken();
 }
