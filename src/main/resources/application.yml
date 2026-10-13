@@ -28,3 +28,7 @@ jwt:
   refresh:
     secret: ${JWT_REFRESH_SECRET}
     expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+jobs:
+  time-zone: Asia/Bangkok
+  cleanup:
+    cron: "0 0 3 * * *"

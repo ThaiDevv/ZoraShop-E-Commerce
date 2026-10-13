@@ -34,6 +34,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.UUID;
 
@@ -320,5 +321,12 @@ public class UserServiceImpl implements UserService {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         Users users = userDetails.getUser();
         refreshTokenRepository.revokeAllJti(users);
+    }
+    @Transactional
+    @Override
+    public void deleteExpiredToken() {
+        Instant now = Instant.now().minus(1, ChronoUnit.DAYS);
+        int countDelete = refreshTokenRepository.deleteExpiredJti(now);
+        log.info("Deleted {} expired refresh tokens", countDelete);
     }
 }

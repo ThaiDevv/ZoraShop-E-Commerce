@@ -792,6 +792,104 @@ Các ngoại lệ cần nhớ:
 - Nếu B bắt và xử lý exception hoàn toàn **bên trong B**, exception không đi qua transactional interceptor nên Spring thường không tự đánh dấu rollback-only; tuy nhiên JPA/database vẫn có thể đánh dấu transaction hỏng với một số lỗi persistence.
 - Có thể thay đổi quy tắc bằng `noRollbackFor`, nhưng phải chắc chắn việc commit phần dữ liệu còn lại là an toàn.
 
+### 5.10. Biên an toàn khi job dọn dữ liệu
+- Job xóa refresh token hết hạn **phải chừa biên ít nhất bằng clock skew** (30s). Nếu không: token hết hạn lúc 13:00:00, job chạy lúc 13:00:00 xóa mất dòng; request lúc 13:00:20 vẫn **qua được JJWT** (còn trong 30s skew) nhưng `findByJti` không thấy dòng nào, nên user nhận 401 oan.
+- Sau `exp + skew`, dòng đó **không còn tác dụng** (parse đã tự từ chối), kể cả cho reuse detection. Vì vậy về mặt bảo mật, biên tối thiểu chỉ cần bằng skew.
+- Thực tế thường chọn biên **rộng** (1 ngày, 7 ngày) vì **chi phí sai lệch không cân xứng**: biên quá nhỏ gây bug thật cho user; biên quá lớn chỉ tốn thêm vài dòng trong DB. Thêm nữa, giữ dữ liệu gần đây giúp **điều tra sự cố** ("hôm qua user này có refresh không?") và chịu được lệch đồng hồ giữa các server.
+- Giá trị skew đang nằm ở nhiều nơi (provider, service, job), nên đưa vào **một cấu hình duy nhất** (ví dụ `jwt.clock-skew-seconds`) để các nơi không bị lệch nhau.
+
+### 5.11. Proxy của `@Transactional` được tạo từ đâu?
+
+Proxy do **Spring Container** tự tạo trong quá trình khởi động application, không phải do Lombok, Hibernate hay code nghiệp vụ tự tạo. `@Transactional` chỉ là metadata cho Spring biết method cần được bao quanh bởi transaction.
+
+Luồng khởi tạo bean:
+
+```text
+Component scanning tìm thấy @Service
+    ↓
+Spring đăng ký BeanDefinition
+    ↓
+Spring tạo object service thật (target) và inject dependency
+    ↓
+BeanPostProcessor/AOP infrastructure đọc @Transactional
+    ↓
+Spring tạo proxy bọc target và gắn TransactionInterceptor
+    ↓
+ApplicationContext đưa proxy cho các bean khác sử dụng
+```
+
+Ví dụ source code chỉ khai báo:
+
+```java
+@Service
+public class CleanupService {
+    @Transactional
+    public void cleanup() {
+        repository.deleteExpired();
+    }
+}
+```
+
+Về mặt ý tưởng, Spring biến bean được sử dụng bên ngoài thành:
+
+```java
+class CleanupServiceProxy {
+    private final CleanupService target;
+    private final TransactionManager transactionManager;
+
+    public void cleanup() {
+        transactionManager.begin();
+        try {
+            target.cleanup();
+            transactionManager.commit();
+        } catch (RuntimeException | Error ex) {
+            transactionManager.rollback();
+            throw ex;
+        }
+    }
+}
+```
+
+Đây chỉ là pseudo-code; implementation thật dùng `TransactionInterceptor`, transaction metadata và `TransactionManager` phù hợp (`JpaTransactionManager`, JDBC transaction manager...). Spring Framework mô tả cơ chế này là AOP proxy + `TransactionInterceptor` + `TransactionManager`.
+
+Khi bean khác inject service:
+
+```java
+private final CleanupService cleanupService;
+```
+
+object được inject thường là proxy, không phải target thô:
+
+```text
+Scheduler → Proxy → TransactionInterceptor → target CleanupService
+```
+
+Spring AOP có hai kiểu proxy chính:
+
+| Kiểu | Cách tạo |
+|---|---|
+| JDK dynamic proxy | Proxy các interface mà target implement |
+| CGLIB proxy | Tạo subclass của target ở runtime |
+
+Có thể quan sát khi debug hoặc log:
+
+```java
+log.info("Bean class: {}", cleanupService.getClass().getName());
+```
+
+Tên class có thể chứa `$$SpringCGLIB$$` hoặc `jdk.proxy`.
+
+Self-invocation bị bỏ qua vì sau khi proxy gọi vào target, `this` bên trong target vẫn là target:
+
+```text
+Bean A → proxy.cleanupA() → target.cleanupA()
+                              ↓ this.cleanupB()
+                         target.cleanupB() trực tiếp
+                         không quay lại proxy
+```
+
+Vì vậy `@Transactional` trên `cleanupB()` không được interceptor nhìn thấy khi gọi bằng `this.cleanupB()`. Muốn annotation có hiệu lực, lời gọi phải đến từ bên ngoài qua proxy, thường bằng cách tách method sang một Spring bean khác.
+
 ---
 
 ## 6. Java / Spring nói chung
@@ -868,6 +966,334 @@ if (cause != null) {
 
 Không ghi nguyên chuỗi JWT vào log. Tên exception, message, `jti` hoặc `userId` thường đã đủ để điều tra.
 
+### 6.3. Các bước dùng scheduler trong Spring Boot
+
+Đây là quy trình tổng quát có thể áp dụng khi bước vào bất kỳ Spring Boot project nào.
+
+#### Bước 0: Xác định đúng loại bài toán
+
+Trước khi viết code, hỏi lịch chạy có cố định không, có cần lưu trạng thái job qua lần restart không và application có chạy nhiều instance không:
+
+| Nhu cầu | Công cụ phù hợp |
+|---|---|
+| Chạy lặp đơn giản khi application đang sống | `@Scheduled` |
+| Lịch được tạo/thay đổi lúc runtime, chạy một lần tại một `Instant` | `TaskScheduler` |
+| Job cần lưu bền vững, misfire handling, lịch phức tạp hoặc cluster | Quartz |
+| Batch độc lập với web app, do hạ tầng quản lý | Kubernetes CronJob hoặc cloud scheduler |
+
+`@Scheduled` là lựa chọn mặc định cho cleanup, polling, tổng hợp báo cáo hoặc đồng bộ định kỳ đơn giản. Nó nằm trong process của application: app dừng thì job cũng dừng và các lần chạy bị lỡ không tự được chạy bù.
+
+#### Bước 1: Kiểm tra dependency
+
+`@Scheduled` thuộc Spring Context và thường đã có sẵn khi project dùng một Spring Boot starter như Web hoặc Data JPA; không cần thêm một starter scheduling riêng. Nếu IDE không tìm thấy `org.springframework.scheduling.annotation.Scheduled`, kiểm tra dependency tree thay vì thêm thư viện ngẫu nhiên.
+
+#### Bước 2: Bật scheduling
+
+Thêm `@EnableScheduling` vào main class hoặc một class `@Configuration`:
+
+```java
+@SpringBootApplication
+@EnableScheduling
+public class Application {
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+}
+```
+
+Nếu muốn bật/tắt scheduling theo profile, đặt `@EnableScheduling` trong một configuration riêng và dùng `@Profile` hoặc `@ConditionalOnProperty`.
+
+#### Bước 3: Viết nghiệp vụ độc lập với scheduler
+
+Scheduler chỉ nên quyết định **khi nào gọi**; service quyết định **làm gì**:
+
+```java
+@Service
+public class ReportService {
+    @Transactional
+    public void generateDailyReport() {
+        // nghiệp vụ thật
+    }
+}
+```
+
+Nhờ vậy cùng một service có thể được gọi từ scheduler, controller, command hoặc test. Transaction, retry và validation cũng nằm ở tầng nghiệp vụ phù hợp.
+
+Ví dụ trong ZoraShop: roadmap cần dọn refresh token. Chỉ xóa token **đã hết hạn**; không xóa token mới revoke nhưng còn hạn vì còn cần nó để phát hiện reuse:
+
+```java
+public interface RefreshTokenRepository
+        extends JpaRepository<RefreshToken, Long> {
+
+    @Modifying
+    @Query("""
+        DELETE FROM RefreshToken rf
+        WHERE rf.expirationDate <= :now
+        """)
+    int deleteExpired(@Param("now") Instant now);
+}
+```
+
+Đặt transaction ở service nghiệp vụ:
+
+```java
+@Service
+@RequiredArgsConstructor
+public class RefreshTokenCleanupService {
+    private final RefreshTokenRepository refreshTokenRepository;
+
+    @Transactional
+    public int deleteExpiredTokens() {
+        return refreshTokenRepository.deleteExpired(Instant.now());
+    }
+}
+```
+
+#### Bước 4: Tạo Spring bean chứa `@Scheduled`
+
+Mẫu có thể dùng ở mọi project:
+
+```java
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class ReportScheduler {
+    private final ReportService reportService;
+
+    @Scheduled(cron = "${jobs.daily-report.cron}",
+               zone = "${jobs.time-zone:UTC}")
+    public void run() {
+        try {
+            reportService.generateDailyReport();
+        } catch (RuntimeException ex) {
+            log.error("Daily report job failed", ex);
+        }
+    }
+}
+```
+
+Ví dụ tương ứng cho refresh token:
+
+```java
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class RefreshTokenCleanupScheduler {
+    private final RefreshTokenCleanupService cleanupService;
+
+    @Scheduled(
+            cron = "${jobs.refresh-token-cleanup.cron}",
+            zone = "${jobs.time-zone:UTC}"
+    )
+    public void cleanup() {
+        try {
+            int deleted = cleanupService.deleteExpiredTokens();
+            log.info("Deleted {} expired refresh tokens", deleted);
+        } catch (RuntimeException ex) {
+            log.error("Refresh-token cleanup failed", ex);
+        }
+    }
+}
+```
+
+Method có `@Scheduled` phải nằm trong Spring bean (`@Component`, `@Service`...), không nhận tham số; với method đồng bộ thì thường trả `void`. Tách scheduler và transactional service thành hai bean giúp lời gọi đi qua proxy và transaction hoạt động rõ ràng.
+
+Luồng khi tách đúng:
+
+```text
+Spring scheduler
+    ↓ gọi RefreshTokenCleanupScheduler.cleanup()
+Scheduler bean
+    ↓ gọi cleanupService.deleteExpiredTokens()
+Proxy của CleanupService
+    ↓ mở transaction
+CleanupService thật
+    ↓ repository UPDATE/DELETE
+Proxy commit hoặc rollback
+```
+
+```java
+@Component
+@RequiredArgsConstructor
+public class CleanupScheduler {
+    private final CleanupService cleanupService;
+
+    @Scheduled(cron = "${jobs.cleanup.cron}")
+    public void run() {
+        cleanupService.cleanup(); // gọi sang bean khác → qua proxy
+    }
+}
+
+@Service
+public class CleanupService {
+    @Transactional
+    public void cleanup() {
+        // các thao tác DB nằm trong transaction
+    }
+}
+```
+
+Nếu đặt hai method trong cùng bean thì self-invocation vẫn làm `@Transactional` bị bỏ qua:
+
+```java
+@Component
+public class CleanupScheduler {
+    @Scheduled(cron = "${jobs.cleanup.cron}")
+    public void run() {
+        cleanup(); // gọi this.cleanup(), không qua proxy
+    }
+
+    @Transactional
+    public void cleanup() {
+        // annotation này không được interceptor áp dụng
+    }
+}
+```
+
+Vì vậy, lợi ích không đến từ việc file có tên `Scheduler`, mà từ việc scheduler và service là **hai Spring bean khác nhau**, service được inject vào scheduler, và method transactional được gọi qua bean proxy. Method `@Transactional` nên là `public`; class và method không nên `final` để tránh cản proxy trong các cấu hình proxy phổ biến.
+
+Nếu scheduler bắt exception ở bên ngoài lời gọi service, transaction vẫn rollback đúng vì exception đã đi qua proxy của service trước khi scheduler bắt nó. Ngược lại, nếu exception bị bắt và nuốt ngay bên trong transactional method, Spring có thể không biết để rollback; khi cần phải ném lại exception hoặc chủ động đánh dấu rollback-only.
+
+Không đặt tham số request, `Authentication` hoặc dữ liệu của một user cụ thể vào scheduled method: nó chạy trong background, không có HTTP request và không có security context của user.
+
+#### Bước 5: Chọn trigger và đưa lịch ra cấu hình
+
+```yaml
+jobs:
+  time-zone: Asia/Bangkok
+  daily-report:
+    cron: "0 0 1 * * *"
+  refresh-token-cleanup:
+    cron: "0 0 3 * * *"
+```
+
+Spring cron có **6 trường**, trường đầu tiên là giây:
+
+```text
+┌──────── giây
+│ ┌────── phút
+│ │ ┌──── giờ
+│ │ │ ┌── ngày trong tháng
+│ │ │ │ ┌ tháng
+│ │ │ │ │ ┌ thứ
+0 0 3 * * *   → 03:00 mỗi ngày
+```
+
+Đặt `zone` rõ ràng để lịch không phụ thuộc timezone của máy chạy application. Có thể vô hiệu hóa cron từ cấu hình bằng giá trị `-` nếu annotation dùng property placeholder.
+
+#### Chọn loại lịch
+
+| Thuộc tính | Cách tính thời gian | Phù hợp |
+|---|---|---|
+| `fixedDelay` | Từ lúc lần trước **kết thúc** đến lần sau bắt đầu | Job không nên chạy chồng; polling |
+| `fixedRate` | Theo khoảng cách giữa các lần **bắt đầu dự kiến** | Công việc ngắn, cần nhịp đều |
+| `cron` | Theo thời điểm trên lịch | Chạy 03:00 hằng ngày, cuối tuần... |
+
+```java
+@Scheduled(fixedDelay = 5, timeUnit = TimeUnit.MINUTES)
+public void poll() {}
+
+@Scheduled(fixedRate = 30, timeUnit = TimeUnit.SECONDS)
+public void reportMetric() {}
+
+@Scheduled(cron = "0 0 3 * * *", zone = "Asia/Bangkok")
+public void nightlyCleanup() {}
+```
+
+Chỉ chọn một trong `cron`, `fixedDelay` hoặc `fixedRate` cho một khai báo `@Scheduled`; có thể thêm `initialDelay` cho fixed delay/rate.
+
+Quy tắc chọn nhanh:
+
+```text
+Cần đợi job trước hoàn tất rồi mới đếm thời gian? → fixedDelay
+Cần nhịp chạy đều theo thời gian bắt đầu?          → fixedRate
+Cần đúng giờ/ngày trên lịch?                       → cron + zone
+Lịch thay đổi ngay khi app đang chạy?               → TaskScheduler/Quartz
+```
+
+Property trong `@Scheduled` thường được đọc khi application context khởi tạo. Đổi cron trong file cấu hình khi app đang chạy thường cần restart. Nếu lịch do user tạo và phải thay đổi runtime, dùng `TaskScheduler` hoặc Quartz thay vì cố ép `@Scheduled` làm lịch động.
+
+Ví dụ chạy một task tại thời điểm động:
+
+```java
+@Service
+@RequiredArgsConstructor
+public class ReminderScheduler {
+    private final TaskScheduler taskScheduler;
+
+    public ScheduledFuture<?> schedule(
+            Runnable task,
+            Instant runAt
+    ) {
+        return taskScheduler.schedule(task, runAt);
+    }
+}
+```
+
+Nếu lịch động phải sống qua lần restart, chỉ giữ `ScheduledFuture` trong RAM là không đủ; phải lưu lịch trong DB và khôi phục, hoặc dùng Quartz với persistent job store.
+
+#### Bước 6: Cấu hình thread pool nếu có nhiều job
+
+Scheduler mặc định của Spring Boot dùng một thread khi không bật virtual threads. Một job chạy lâu có thể làm các job khác phải chờ:
+
+```yaml
+spring:
+  task:
+    scheduling:
+      thread-name-prefix: scheduling-
+      pool:
+        size: 2
+      shutdown:
+        await-termination: true
+        await-termination-period: 30s
+```
+
+Không tăng pool theo thói quen; trước tiên phải kiểm tra các job có được phép chạy song song và có tranh chấp dữ liệu hay không.
+
+Không thêm `@Async` chỉ để "cho chạy nhanh". `@Async` có thể khiến các lần chạy chồng lên nhau; trước tiên phải đảm bảo nghiệp vụ idempotent và thread-safe.
+
+#### Bước 7: Thiết kế an toàn khi job chạy lại hoặc chạy đồng thời
+
+Một job tốt nên **idempotent**: chạy lại với cùng dữ liệu không làm hỏng trạng thái. Ví dụ:
+
+```sql
+DELETE FROM refresh_token
+WHERE expiration_date <= :now
+```
+
+Chạy hai lần vẫn cho cùng trạng thái cuối. Ngược lại, job kiểu `balance = balance + 100` không idempotent và cần khóa/idempotency key.
+
+Phải tự hỏi:
+
+- Job chạy lâu hơn chu kỳ thì chuyện gì xảy ra?
+- Hai job có sửa cùng dòng dữ liệu không?
+- App có nhiều instance không?
+- Lỗi giữa chừng thì lần sau có chạy tiếp an toàn không?
+- Transaction nên bao trùm cả job hay từng batch nhỏ?
+
+#### Bước 8: Test, quan sát và vận hành
+
+- Khi thử local, tạm dùng `cron: "*/10 * * * * *"` để chạy mỗi 10 giây và kiểm tra log/DB; sau đó trả lại lịch thật.
+- Unit test trực tiếp `cleanupService.deleteExpiredTokens()`; không nên làm test phải ngủ và chờ scheduler chạy.
+- Log số dòng xử lý, thời gian chạy và lỗi; không để exception biến mất im lặng.
+- Nếu deploy nhiều instance, **mỗi instance đều chạy cùng job**. Job cleanup bằng điều kiện `DELETE ... WHERE expirationDate <= :now` có tính idempotent, nhưng job không được chạy trùng thì cần distributed lock, Quartz cluster hoặc cơ chế leader.
+- Với bảng lớn, xóa theo batch để tránh transaction dài và giữ lock quá lâu.
+
+#### Checklist mang sang project khác
+
+```text
+[ ] Chọn đúng công cụ: @Scheduled / TaskScheduler / Quartz / external scheduler
+[ ] Kiểm tra dependency và thêm @EnableScheduling
+[ ] Tách scheduler khỏi business service
+[ ] Chọn fixedDelay, fixedRate hay cron; khai báo zone
+[ ] Đưa lịch ra application.yml
+[ ] Xác định transaction boundary
+[ ] Đảm bảo idempotent và xử lý concurrent execution
+[ ] Kiểm tra số instance và nhu cầu distributed lock
+[ ] Cấu hình pool/graceful shutdown nếu cần
+[ ] Log, metric, alert và test nghiệp vụ trực tiếp
+```
+
 ---
 
 ## 7. Bảo mật cấu hình và Git
@@ -894,6 +1320,7 @@ Không ghi nguyên chuỗi JWT vào log. Tên exception, message, `jti` hoặc `
 8. *Ai cần dữ liệu này?* → người đó tạo ra nó.
 9. *Nếu cấu hình bị sai (ví dụ 2 secret giống nhau) thì còn lớp bảo vệ nào không?*
 10. *Exception này bay tới đâu, ai bắt nó?*
+11. *Nếu chọn sai thì bên nào thiệt hơn?* Chi phí không cân xứng thì nghiêng về phía an toàn.
 
 ---
 
