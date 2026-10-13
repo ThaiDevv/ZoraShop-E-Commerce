@@ -26,6 +26,6 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
             "AND rf.isRevoked = false")
     int revokeAllJti(@Param("user") Users user);
     @Modifying()
-    @Query("DELETE RefreshToken rt WHERE rt.expirationDate < :now")
+    @Query("DELETE FROM RefreshToken rt WHERE rt.expirationDate < :now")
     int deleteExpiredJti(@Param("now") Instant now);
 }
