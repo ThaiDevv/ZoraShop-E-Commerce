@@ -1,0 +1,29 @@
+meta {
+  name: 5. Refresh Token - Invalid Token
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/refresh-token
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "refreshToken": "this.is-not.a-valid-jwt"
+  }
+}
+
+tests {
+  test("returns 401 Token is invalid", function() {
+    expect(res.getStatus()).to.equal(401);
+    expect(res.getBody().message).to.equal("Token is invalid");
+  });
+}
+
+docs {
+  Token sai định dạng / sai chữ ký: backend không parse được JWT nên trả 401.
+  Không ảnh hưởng đến phiên đăng nhập hiện tại.
+}

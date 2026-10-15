@@ -1,0 +1,26 @@
+meta {
+  name: 7. Logout All Devices
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/logout-all
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+tests {
+  test("returns 204 No Content", function() {
+    expect(res.getStatus()).to.equal(204);
+  });
+}
+
+docs {
+  Cần access token còn hạn (chạy "2. Login User" trước). Thu hồi toàn bộ refresh token
+  của user trên mọi thiết bị. Sau đó mọi refresh token cũ đều nhận 401 khi refresh.
+}

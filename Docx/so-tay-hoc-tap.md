@@ -1587,6 +1587,15 @@ Dùng `Duration` tránh trường hợp người đọc không biết số `1` m
 
 ---
 
+### 6.5. Integration test với Testcontainers: nguyên tắc
+- **Unit test** kiểm tra một class, giả lập (mock) phần còn lại. **Integration test** chạy Spring thật + DB thật. Transaction, rollback, ràng buộc DB, race condition **chỉ kiểm chứng được bằng integration test**.
+- **Testcontainers** bật PostgreSQL thật trong Docker cho mỗi lần chạy test (cần Docker đang chạy). `@ServiceConnection` tự trỏ datasource vào container đó.
+- Cấu trúc một test: **Arrange** (chuẩn bị dữ liệu) → **Act** (gọi hàm cần test) → **Assert** (kiểm tra kết quả). AssertJ: `assertThat(...)`, `assertThatThrownBy(() -> ...).isInstanceOf(...)`.
+- **Không gắn `@Transactional` lên test** khi muốn kiểm tra hành vi transaction: test sẽ chạy trong một transaction lớn rồi rollback cuối test, che mất commit/rollback thật (ví dụ `noRollbackFor`, `flushAutomatically`), và các thread khác không thấy được dữ liệu chưa commit.
+- Mỗi test **tự tạo dữ liệu riêng** (email ngẫu nhiên bằng UUID) để các test không ảnh hưởng nhau, chạy theo thứ tự nào cũng được.
+- Cấu hình riêng cho test: `src/test/resources/application-test.yml` + `@ActiveProfiles("test")`. **Đừng** đặt tên `application.yml` trong `src/test/resources`, vì nó sẽ **che mất** file cấu hình chính.
+- Test đồng thời: `ExecutorService` tạo thread, `CountDownLatch` làm "vạch xuất phát" để các thread chạy cùng lúc, rồi đếm số thread thành công/thất bại.
+
 ## 7. Bảo mật cấu hình và Git
 
 - Secret (JWT key, DB password) **không bao giờ** nằm trong code hoặc `application.yml` được commit.

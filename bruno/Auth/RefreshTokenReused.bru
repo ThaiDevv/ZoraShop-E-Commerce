@@ -1,0 +1,32 @@
+meta {
+  name: 4. Refresh Token - Reused (Old Token)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/refresh-token
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "refreshToken": "{{usedRefreshToken}}"
+  }
+}
+
+tests {
+  test("returns 401 because the token was already rotated", function() {
+    expect(res.getStatus()).to.equal(401);
+    expect(res.getBody().message).to.equal("RefreshToken is revoked");
+  });
+}
+
+docs {
+  Chạy "3. Refresh Token - Valid" trước để có usedRefreshToken (token đã dùng rồi).
+
+  Gửi lại token cũ bị backend coi là token bị đánh cắp (reuse detection): trả về 401
+  và thu hồi TẤT CẢ refresh token của user. Sau request này refreshToken hiện tại cũng
+  không dùng được nữa, cần chạy lại "2. Login User".
+}
