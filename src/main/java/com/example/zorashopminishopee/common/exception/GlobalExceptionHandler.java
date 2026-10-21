@@ -7,6 +7,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import java.util.List;
 
@@ -130,6 +131,24 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleMethodValidationException(HandlerMethodValidationException ex) {
+        List<String> errors = ex.getParameterValidationResults()
+                .stream()
+                .flatMap(result -> result.getResolvableErrors().stream()
+                        .map(error -> result.getMethodParameter().getParameterName() + ": " + error.getDefaultMessage()))
+                .toList();
+
+        log.warn("Validation error: {}", errors);
+        return ErrorResponse.of(
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                "Invalid request parameters",
+                errors
+        );
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ErrorResponse handleUncaughtException(Exception ex) {
@@ -138,6 +157,27 @@ public class GlobalExceptionHandler {
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
                 "An unexpected error occurred"
+        );
+    }
+    @ExceptionHandler(ConflictRequestException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleConflict(Exception ex) {
+        Throwable cause = ex.getCause();
+        if (cause != null) {
+            log.warn(
+                    "Conflict: {} (cause: {}: {})",
+                    ex.getMessage(),
+                    cause.getClass().getSimpleName(),
+                    cause.getMessage()
+            );
+            log.debug("Conflict request error: ", ex);
+        }else {
+            log.warn("Conflict: {}", ex.getMessage());
+        }
+        return ErrorResponse.of(
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                ex.getMessage()
         );
     }
 }
