@@ -1,0 +1,1 @@
+CREATE INDEX idx_reviews_media_review_item_id ON reviews_media(review_item_id);

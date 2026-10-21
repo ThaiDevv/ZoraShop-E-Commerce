@@ -54,11 +54,13 @@ public class ReviewItem {
     @Column(name = "is_anonymous")
     private Boolean isAnonymous = false;
 
+    @Builder.Default
     @Column(name = "reply_comment")
-    private String replyComment;
+    private String replyComment = null;
 
+    @Builder.Default
     @Column(name = "reply_date")
-    private LocalDateTime replyDate;
+    private LocalDateTime replyDate = null;
 
     @Builder.Default
     @Column(name = "create_date")

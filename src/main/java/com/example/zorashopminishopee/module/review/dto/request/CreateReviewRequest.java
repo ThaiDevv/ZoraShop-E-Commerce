@@ -1,13 +1,15 @@
 package com.example.zorashopminishopee.module.review.dto.request;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
+
 import java.util.List;
 
 public record CreateReviewRequest(
-        Long orderItemId,
-        Long productId,
-        Integer star,
-        String comment,
+        @NotNull @Positive Long orderItemId,
+        @NotNull @Min(1) @Max(5) Integer star,
+        @Size(max = 2000) String comment,
         boolean isAnonymous,
-        List<ReviewsMediaRequest> medias
+        @Size(max = 5) List<@NotNull @Valid ReviewsMediaRequest> medias
 ) {
 }
