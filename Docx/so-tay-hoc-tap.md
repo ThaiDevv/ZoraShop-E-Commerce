@@ -57,6 +57,8 @@
 | L16 | `CascadeType.ALL` + `orphanRemoval` trên `Order.orderItems` trong khi vẫn `save()` tay từng item | Cascade gần như không làm gì, còn `clear()` có thể xóa item khỏi DB. `ALL` là code smell |
 | L20 | Sau khi `revokeJti()` trả về 0, các `if` không bao phủ hết trường hợp nên code **rơi xuống dưới** và vẫn cấp token mới | Có kẽ hở cấp token mà không thu hồi token cũ (ví dụ khi đồng hồ DB và JVM lệch nhau) | Khi điều kiện "thắng" không xảy ra (0 dòng), **mọi nhánh đều phải từ chối**. Các nhánh chỉ khác nhau ở việc có revoke toàn bộ hay không |
 | L21 | `catch (JwtException e) { throw new UnauthorizedException("Token is invalid"); }` **bỏ mất `e`** | Không còn cách nào biết lỗi thật (hết hạn, sai chữ ký, sai định dạng…), log chỉ ghi "Token is invalid" | Dùng **exception chaining**: `new UnauthorizedException(msg, e)` và log nguyên nhân ở một chỗ. Xem mục 6 |
+| L25 | Để `@OneToOne(mappedBy)` ở `Product.review` và `OrderItem.reviewItem` (không ghi `fetch`, mặc định EAGER) | Phía ngược của `@OneToOne` **luôn bị load ngay**, kể cả khi đặt `LAZY`, gây N+1 ở danh sách sản phẩm và lịch sử đơn. Giữ quan hệ một chiều ở phía có FK, cần thì hỏi qua repository. Xem 3.8 |
+| L26 | `createReview()` tạo bảng thống kê `Review` theo kiểu "chưa có thì tạo" lúc có review đầu tiên | Hai review đầu tiên đến cùng lúc: cả hai thấy `null`, cả hai insert, request sau dính `UNIQUE(product_id)` và trả 500 (check-then-act, mục 5.6). Tạo `Review` **cùng transaction với lúc tạo `Product`** |
 
 ### 🔵 Lỗi nhỏ nhưng hay lặp lại
 
@@ -69,6 +71,8 @@
 - Tham số tên `refreshToken` trong hàm dùng chung cho cả 2 loại token.
 - `@Value` cùng một cấu hình khai báo ở 2 class. Chỉ để ở nơi thật sự dùng.
 - Mô tả trong `SwaggerConfig` ghi "nhập dạng `Bearer <token>`", nhưng scheme `bearer` đã **tự thêm tiền tố**. Làm theo mô tả thì header thành `Bearer Bearer xxx` và filter trả 401. Ô Authorize chỉ dán **token trần**.
+- API tạo mới (cart, category, order) đều trả `ResponseEntity.ok` (200). Tạo mới nên trả **`201 Created`**. Xem 6.6.
+- `@Builder.Default private String x = null;` là thừa: không có `@Builder.Default` thì builder cũng để `null`. Chỉ cần `@Builder.Default` khi giá trị khởi tạo **khác** giá trị mặc định (`0L`, `new ArrayList<>()`, `false`…).
 
 ---
 
@@ -472,6 +476,45 @@ Rủi ro: `toString()`/`@Data`/Jackson chạm vào collection gây lazy load, `L
 
 ### 3.7. Snapshot trong `order_items`
 - Lưu tên, giá, ảnh **tại thời điểm mua**, nên seller đổi giá sau đó cũng không làm sai lịch sử đơn. (Phần này mình đã làm đúng.)
+
+### 3.8. Phía ngược của `@OneToOne` không lazy được
+- `@OneToOne(mappedBy = ...)` (ví dụ `Product.review`, `OrderItem.reviewItem`) **không có cột FK** ở bảng của mình. Hibernate không biết quan hệ này `null` hay không nếu chưa query, nên **không tạo được proxy**: đặt `LAZY` cũng bị bỏ qua (trừ khi bật bytecode enhancement).
+- Hậu quả: mỗi `Product`/`OrderItem` được load là **thêm 1 query** sang bảng review, gây N+1 ở trang danh sách sản phẩm và lịch sử đơn.
+- Kiểm chứng: bật `logging.level.org.hibernate.SQL=debug`, gọi API danh sách rồi đếm số câu `select ... from reviews`.
+- Cách sửa: giữ quan hệ **một chiều** ở phía có FK (`Review.product`, `ReviewItem.orderItem`, đặt `LAZY`). Cần thì hỏi repository: `existsByOrderItemId(...)`, `findByProductId(...)`.
+
+### 3.9. Bốn trạng thái của entity và dirty checking
+Câu hỏi gốc: *"`ReviewItem` mình đã `build()` rồi, kết thúc transaction không tự lưu à?"* → **Không.**
+
+| Trạng thái | Cách có được | Commit có tự ghi DB không? |
+|---|---|---|
+| **Transient** | `new`, `builder().build()` | ❌ Persistence context không biết object này tồn tại |
+| **Managed** (persistent) | Lấy từ `find`/query, hoặc sau `save`/`persist` | ✅ Dirty checking: so với snapshot rồi tự **UPDATE** |
+| **Detached** | Đã managed nhưng context đóng hoặc bị `clear` (ví dụ `clearAutomatically`) | ❌ Phải `merge`/`save` lại |
+| **Removed** | Sau `delete`/`remove` | **DELETE** khi flush |
+
+```
+ new/build()            save()/persist()            commit/flush
+ TRANSIENT ───────────────► MANAGED ─────────────────► INSERT/UPDATE
+                              │  ▲
+              clear()/đóng    │  │ merge()/save()
+                 context      ▼  │
+                            DETACHED
+                              
+ MANAGED ── delete() ──► REMOVED ── flush ──► DELETE
+```
+
+**Dirty checking** chỉ áp dụng cho entity **managed**, và chỉ sinh **UPDATE**, không bao giờ sinh INSERT cho object mới.
+- Đúng: `changeActive` load `user` từ DB, rồi `setIsActive(false)`. Không cần gọi `save`, commit sẽ tự UPDATE.
+- Sai: `createReviewItem` tự `build()` một `ReviewItem` mà không `save`. Object ở trạng thái transient, commit xong thì mất.
+
+**Tham chiếu tới entity managed không làm object mới được lưu.** `reviewItem.setReview(review)` (với `review` đã managed) **không** khiến `reviewItem` được INSERT. Persistence context chỉ đi **từ entity managed ra ngoài** theo các quan hệ có `cascade`. Ví dụ: `medias` có `cascade = ALL`, nên `save(reviewItem)` sẽ INSERT luôn các `ReviewsMedia` nằm trong list. Nhớ set cả chiều ngược `media.setReviewItem(reviewItem)`, nếu không cột `review_item_id` sẽ bị `null`.
+
+**`GenerationType.IDENTITY`:** id do DB sinh **lúc INSERT**, nên `save()` phải INSERT **ngay lập tức** (không đợi commit) để lấy id. Hệ quả:
+- Map sang response **trước** khi `save` sẽ nhận `id = null`.
+- Lỗi vi phạm `UNIQUE` sẽ nổ ngay tại dòng `save`. Vì vậy hãy đặt `save` **trước** các câu UPDATE thống kê, để không chạy UPDATE vô ích.
+
+Kiểm chứng: bật `show-sql`, bỏ dòng `save` rồi gọi API. Log sẽ không có câu `insert into reviews_item` nào.
 
 ---
 
@@ -1596,6 +1639,19 @@ Dùng `Duration` tránh trường hợp người đọc không biết số `1` m
 - Cấu hình riêng cho test: `src/test/resources/application-test.yml` + `@ActiveProfiles("test")`. **Đừng** đặt tên `application.yml` trong `src/test/resources`, vì nó sẽ **che mất** file cấu hình chính.
 - Test đồng thời: `ExecutorService` tạo thread, `CountDownLatch` làm "vạch xuất phát" để các thread chạy cùng lúc, rồi đếm số thread thành công/thất bại.
 
+### 6.6. API tạo mới (POST) nên trả về gì?
+
+| Cách | Ưu | Nhược |
+|---|---|---|
+| Trả object đầy đủ, **cùng DTO với item trong danh sách** | Client hiển thị ngay, không phải gọi lại GET; frontend chỉ cần một model | Phải map đủ field |
+| Chỉ trả `id` | Đơn giản | Client phải gọi GET lại |
+| `204 No Content` | Gọn nhất | Client không biết `id`, phải gọi lại |
+
+- Mặc định: trả object đầy đủ với **`201 Created`**: `ResponseEntity.status(HttpStatus.CREATED).body(...)`.
+- Field luôn rỗng lúc tạo (`countLike = 0`, `replyComment = null`) vẫn giữ, đổi lại được việc dùng chung một DTO cho create và list.
+- Tên field là **hợp đồng (contract)** với frontend: đổi sau khi frontend đã dùng là breaking change. Đặt đúng từ đầu (list object thì tên `medias`, không phải `mediaUrl`).
+- Dữ liệu cần che (review ẩn danh) phải che **ở backend** (mapper). Che ở frontend là vô nghĩa vì ai cũng xem được JSON bằng DevTools. Che luôn cả `user.id`, nếu không người ta vẫn nối được review với tài khoản.
+
 ## 7. Bảo mật cấu hình và Git
 
 - Secret (JWT key, DB password) **không bao giờ** nằm trong code hoặc `application.yml` được commit.
@@ -1621,6 +1677,7 @@ Dùng `Duration` tránh trường hợp người đọc không biết số `1` m
 9. *Nếu cấu hình bị sai (ví dụ 2 secret giống nhau) thì còn lớp bảo vệ nào không?*
 10. *Exception này bay tới đâu, ai bắt nó?*
 11. *Nếu chọn sai thì bên nào thiệt hơn?* Chi phí không cân xứng thì nghiêng về phía an toàn.
+12. *Người xem khác nhau (chủ sở hữu, người lạ, khách chưa login) có nên thấy cùng một response không?* Field nào phải che?
 
 ---
 
@@ -1658,6 +1715,14 @@ Còn lại:
 - [ ] Bước 9: integration test (Testcontainers), README, Bruno
 
 **Module review:** `[WIP]`, `createReviewItem` chưa lưu và vẫn `return null`.
+
+Việc còn lại cho `createReviewItem` (2026-10-16):
+- [ ] Validate `CreateReviewRequest` (`star` 1–5, độ dài comment, số lượng media), bỏ `productId` thừa
+- [ ] Chỉ cho review khi đơn `DELIVERED`; review trùng trả `409`
+- [ ] Lưu `ReviewItem` + media; cập nhật thống kê `Review` bằng `UPDATE` nguyên tử
+- [ ] `ReviewMapper`: che user khi ẩn danh, đổi `mediaUrl` thành `medias`, `variantName` lấy từ snapshot
+- [ ] Controller trả `201 Created`
+- [ ] Sửa L25, L26
 
 **Nợ kỹ thuật:** xem `Docx/tech-debt.md`.
 
@@ -1700,3 +1765,11 @@ Còn lại:
 - Học: `@Modifying` cần transaction; `clearAutomatically` làm mất thay đổi chưa flush (5.9); GET phải an toàn (2.11); exception chaining và guard clause (mục 6).
 - Sai: L21, L22, L23, L24.
 - Ôn lại: `isEmpty()`/`isBlank()`/`StringUtils.hasText()`; cách `CustomUserDetails` trở thành principal; `Authentication.getPrincipal()` và `getName()`; trả `204 No Content`; quy tắc SLF4J khi tham số cuối là `Throwable`; thứ tự `flush → modifying query → clear`.
+
+### 2026-10-16: Thiết kế response cho API tạo review
+- Học: POST nên trả gì và vì sao trả `201` (6.6); phía ngược `@OneToOne` không lazy được (3.8); che dữ liệu ẩn danh ở backend; tên field là contract với frontend.
+- Sai: L25, L26; API tạo mới trả 200; `@Builder.Default = null` thừa.
+
+### 2026-10-21: Review `createReviewItem` và `getReviewItems`
+- Học: 4 trạng thái entity, dirty checking chỉ UPDATE entity managed; object mới phải `save` hoặc được cascade; `IDENTITY` INSERT ngay khi `save` (3.9).
+- Sai: quên `save(reviewItem)`, nhưng vẫn tăng thống kê và trả `id = null`.
