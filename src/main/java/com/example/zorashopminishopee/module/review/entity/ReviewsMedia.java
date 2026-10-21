@@ -1,5 +1,6 @@
 package com.example.zorashopminishopee.module.review.entity;
 
+import com.example.zorashopminishopee.module.review.enums.MediaType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -10,7 +11,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ReviewsMedia {
+public class                                                                                                                 ReviewsMedia {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -23,6 +24,7 @@ public class ReviewsMedia {
     private String mediaUrl;
 
     @Builder.Default
-    @Column(name = "media_type")
-    private String mediaType = "IMAGE";
+    @Enumerated(EnumType.STRING)
+    @Column(name = "media_type", nullable = false, length = 20)
+    private MediaType mediaType = MediaType.IMAGE;
 }

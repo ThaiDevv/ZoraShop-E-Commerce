@@ -1,11 +1,7 @@
 package com.example.zorashopminishopee.module.review.dto.response;
 
-import com.example.zorashopminishopee.module.review.enums.MediaType;
-
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 public record ReviewItemResponse(
         Long id,
@@ -16,8 +12,8 @@ public record ReviewItemResponse(
         Long countLike,
         String replyComment,
         ReviewUserResponse user,
-        Boolean isLiked,
-        List<ReviewMediaResponse> mediaUrl,
+        boolean isLiked,
+        List<ReviewMediaResponse> medias,
         LocalDateTime replyDate,
         LocalDateTime createDate
 ) {

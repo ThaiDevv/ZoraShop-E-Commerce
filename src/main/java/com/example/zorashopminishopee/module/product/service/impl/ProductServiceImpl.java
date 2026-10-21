@@ -21,6 +21,8 @@ import com.example.zorashopminishopee.module.product.repository.ProductVariantRe
 import com.example.zorashopminishopee.module.product.service.InventoryService;
 import com.example.zorashopminishopee.module.product.service.ProductService;
 import com.example.zorashopminishopee.module.product.specification.ProductSpecification;
+import com.example.zorashopminishopee.module.review.entity.Review;
+import com.example.zorashopminishopee.module.review.service.ReviewService;
 import com.example.zorashopminishopee.module.users.entity.Shops;
 import com.example.zorashopminishopee.module.users.repository.ShopRepository;
 import jakarta.transaction.Transactional;
@@ -44,6 +46,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductImageRepository productImageRepository;
     private final ProductVariantRepository productVariantRepository;
     private final InventoryService  inventoryService;
+    private final ReviewService reviewService;
     public String createSlug(String name) {
         String slug = name.replaceAll("Đ", "D").replaceAll("đ", "d");
         slug = Normalizer
@@ -183,6 +186,8 @@ public class ProductServiceImpl implements ProductService {
             }
         }
         productRepository.save(product);
+        Review review = reviewService.createReview(product);
+        product.setReview(review);
         if(product.getVariants() != null) {
             for( ProductVariant variant : product.getVariants()) {
                 Inventory inventory = inventoryService.createInventory(variant, variant.getStock());
