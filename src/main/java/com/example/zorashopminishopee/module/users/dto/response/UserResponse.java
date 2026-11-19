@@ -1,6 +1,6 @@
 package com.example.zorashopminishopee.module.users.dto.response;
 
-import com.example.zorashopminishopee.module.oder.enums.Sex;
+import com.example.zorashopminishopee.module.users.enums.Sex;
 import com.example.zorashopminishopee.module.users.enums.UserRole;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

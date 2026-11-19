@@ -25,7 +25,6 @@ import com.example.zorashopminishopee.module.review.entity.Review;
 import com.example.zorashopminishopee.module.review.service.ReviewService;
 import com.example.zorashopminishopee.module.users.entity.Shops;
 import com.example.zorashopminishopee.module.users.repository.ShopRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -33,6 +32,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
 import java.util.*;
@@ -47,6 +47,8 @@ public class ProductServiceImpl implements ProductService {
     private final ProductVariantRepository productVariantRepository;
     private final InventoryService  inventoryService;
     private final ReviewService reviewService;
+    private static final String STATUS_ACTIVE = "ACTIVE";
+    private static final String STATUS_BANNED = "BANNED";
     public String createSlug(String name) {
         String slug = name.replaceAll("Đ", "D").replaceAll("đ", "d");
         slug = Normalizer
@@ -223,6 +225,7 @@ public class ProductServiceImpl implements ProductService {
         );
     }
     @Override
+    @Transactional(readOnly = true)
     public Page<ProductSummaryResponse> getAllProducts(FilterSortRequest request, int page, int size) {
         String fieldName = ProductSortBy.getValidFieldName(request.sortBy() != null ? request.sortBy().name() : null);
 
@@ -236,7 +239,7 @@ public class ProductServiceImpl implements ProductService {
                 .and(ProductSpecification.hasShop(request.shopId()))
                 .and(ProductSpecification.priceBetween(request.minPrice(), request.maxPrice()))
                 .and((root, query, cb)
-                        -> cb.equal(root.get("status"), "ACTIVE"));
+                        -> cb.equal(root.get("status"), STATUS_ACTIVE));
         Page<Product> products = productRepository.findAll(spec, pageable);
         return products.map(this::mapToProductSummaryResponse);
     }
@@ -291,7 +294,10 @@ public class ProductServiceImpl implements ProductService {
         if (request.originalPrice() != null) {
             product.setOriginalPrice(request.originalPrice());
         }
-        if (request.status() != null) {
+        if (request.status() != null && !request.status().equals(product.getStatus())) {
+            if (STATUS_BANNED.equals(product.getStatus())) {
+                throw new ForbiddenException("Sản phẩm đã bị khóa bởi quản trị viên, không thể đổi trạng thái!");
+            }
             product.setStatus(request.status());
         }
 
@@ -315,6 +321,12 @@ public class ProductServiceImpl implements ProductService {
                 productImageRepository.findAllById(existingImageIds)
                         .forEach(img -> imageMap.put(img.getId(), img));
             }
+            for (Long imageId : existingImageIds) {
+                ProductImage img = imageMap.get(imageId);
+                if (img == null || !img.getProduct().getId().equals(product.getId())) {
+                    throw new BadRequestException("Ảnh #" + imageId + " không thuộc sản phẩm này!");
+                }
+            }
 
             for (UpdateProductImageRequest imgReq : request.images()) {
                 if (imgReq.id() != null) {
@@ -325,6 +337,9 @@ public class ProductServiceImpl implements ProductService {
                         if (imgReq.isPrimary() != null) existingImg.setIsPrimary(imgReq.isPrimary());
                     }
                 } else {
+                    if (imgReq.imageUrl() == null) {
+                        throw new BadRequestException("Ảnh mới phải có imageUrl!");
+                    }
                     ProductImage newImg = ProductImage.builder()
                             .product(product)
                             .imageUrl(imgReq.imageUrl())
@@ -347,6 +362,12 @@ public class ProductServiceImpl implements ProductService {
                 productVariantRepository.findAllById(existingVariantIds)
                         .forEach(v -> variantMap.put(v.getId(), v));
             }
+            for (Long variantId : existingVariantIds) {
+                ProductVariant v = variantMap.get(variantId);
+                if (v == null || !v.getProduct().getId().equals(product.getId())) {
+                    throw new BadRequestException("Phân loại #" + variantId + " không thuộc sản phẩm này!");
+                }
+            }
 
             for (UpdateProductVariantRequest varReq : request.variants()) {
                 if (varReq.id() != null) {
@@ -356,8 +377,7 @@ public class ProductServiceImpl implements ProductService {
                         if (varReq.price() != null) existingVar.setPrice(varReq.price());
                         if (varReq.stock() != null) {
                             inventoryService.updateStock(existingVar, varReq.stock());
-                            existingVar.setStock(varReq.stock());
-                        };
+                        }
                         if (varReq.imageUrl() != null) existingVar.setImageUrl(varReq.imageUrl());
                         if (varReq.sku() != null && !varReq.sku().equals(existingVar.getSku())) {
                             if (productVariantRepository.existsBySkuIn(List.of(varReq.sku()))) {
@@ -367,7 +387,11 @@ public class ProductServiceImpl implements ProductService {
                         }
                     }
                 } else {
-                    if (varReq.sku() != null && productVariantRepository.existsBySkuIn(List.of(varReq.sku()))) {
+                    if (varReq.variantName() == null || varReq.sku() == null
+                            || varReq.price() == null || varReq.stock() == null) {
+                        throw new BadRequestException("Phân loại mới phải có đủ variantName, sku, price, stock!");
+                    }
+                    if (productVariantRepository.existsBySkuIn(List.of(varReq.sku()))) {
                         throw new DuplicateResourceException("Mã SKU đã tồn tại: " + varReq.sku());
                     }
                     ProductVariant newVar = ProductVariant.builder()
@@ -407,6 +431,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<ProductSummaryResponse> getMyProducts(String email, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"));
         Shops shop = shopRepository.findByUser_Email(email)

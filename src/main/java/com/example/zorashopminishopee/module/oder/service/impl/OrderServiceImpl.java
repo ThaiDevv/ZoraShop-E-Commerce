@@ -75,7 +75,7 @@ public class OrderServiceImpl implements OrderService {
         }
         inventoryService.checkStockFromCartItem(cartItems);
         Users user = cartItems.get(0).getCart().getUser();
-        Address address = addressRepository.findByIdAndUser_Email(request.addressId(), email)
+        Address address = addressRepository.findByIdAndUserEmail(request.addressId(), email)
                 .orElseThrow(() -> new ResourceNotFoundException("Địa chỉ nhận hàng không hợp lệ hoặc không thuộc về bạn!"));
 
         Map<Shops, List<CartItem>> shopsListMap = cartItems.stream().collect(Collectors.groupingBy(
@@ -150,6 +150,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<HistoryOrderResponse> getHistoryOrders(String email,StatusType status, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"));
         Specification<Order> spec = Specification.where(OrderSpecification.hasUserEmail(email))
@@ -164,11 +165,15 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findForCancelByUserEmailAndId(email, orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng #" + orderId + " hoặc bạn không có quyền truy cập!"));
 
-        if (order.getStatus() != StatusType.PENDING && order.getStatus() != StatusType.CONFIRMED) {
+        if (!order.getStatus().canTransitionTo(StatusType.CANCELLED)) {
             throw new BadRequestException("Không thể hủy đơn hàng đang trong quá trình vận chuyển hoặc đã hoàn thành!");
         }
         inventoryService.cancelReserved(order.getOrderItems());
         order.setStatus(StatusType.CANCELLED);
+        Payment payment = order.getPayment();
+        if (payment != null && payment.getStatus() == PaymentStatus.COMPLETED) {
+            payment.setStatus(PaymentStatus.REFUNDED);
+        }
         orderRepository.save(order);
         return orderMapper.mapToCancelOrderResponse(order, reason);
     }

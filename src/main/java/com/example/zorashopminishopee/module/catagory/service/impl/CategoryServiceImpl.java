@@ -4,9 +4,11 @@ import com.example.zorashopminishopee.common.exception.BadRequestException;
 import com.example.zorashopminishopee.common.exception.DuplicateResourceException;
 import com.example.zorashopminishopee.common.exception.ResourceNotFoundException;
 import com.example.zorashopminishopee.module.catagory.dto.request.CreateCategoryRequest;
+import com.example.zorashopminishopee.module.catagory.dto.request.UpdateCategoryRequest;
 import com.example.zorashopminishopee.module.catagory.dto.response.CategoryResponse;
 import com.example.zorashopminishopee.module.catagory.entity.Category;
 import com.example.zorashopminishopee.module.catagory.repository.CategoryRepository;
+import com.example.zorashopminishopee.module.product.repository.ProductRepository;
 import com.example.zorashopminishopee.module.catagory.service.CategoryService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +23,9 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class CategoryServiceImpl implements CategoryService {
+    private static final int MAX_LEVEL = 3;
     private final CategoryRepository categoryRepository;
+    private final ProductRepository productRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -63,7 +67,7 @@ public class CategoryServiceImpl implements CategoryService {
                     () -> new ResourceNotFoundException("Parent Category Not Found")
             );
              level = parent.getLevel() + 1;
-             if(level > 3){
+             if(level > MAX_LEVEL){
                  throw new BadRequestException("Hệ thống chỉ hỗ trợ danh mục tối đa 3 cấp!");
              }
         }
@@ -87,7 +91,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
-    public CategoryResponse updateCategory(Long id, CreateCategoryRequest request) {
+    public CategoryResponse updateCategory(Long id, UpdateCategoryRequest request) {
         Category category = categoryRepository.findById(id).orElseThrow(
                 () -> new ResourceNotFoundException("Category Not Found")
         );
@@ -106,7 +110,7 @@ public class CategoryServiceImpl implements CategoryService {
         if (request.parentId() != null) {
             if (request.parentId() == 0) {
                 category.setParent(null);
-                category.setLevel(1);
+                updateLevelRecursively(category, 1);
             } else {
                 if (id.equals(request.parentId())) {
                     throw new BadRequestException("Danh mục không thể chọn chính nó làm danh mục cha!");
@@ -114,14 +118,15 @@ public class CategoryServiceImpl implements CategoryService {
 
                 Category newParent = categoryRepository.findById(request.parentId())
                         .orElseThrow(() -> new ResourceNotFoundException("Parent Category Not Found with id: " + request.parentId()));
-                if (newParent.getLevel() >= 3) {
-                    throw new BadRequestException("Hệ thống chỉ hỗ trợ danh mục tối đa 3 cấp!");
-                }
                 if (isDescendant(category, newParent)) {
                     throw new BadRequestException("Không thể chọn chính nó hoặc danh mục con/cháu của nó làm danh mục cha!");
                 }
+                int newLevel = newParent.getLevel() + 1;
+                if (newLevel + subtreeHeight(category) - 1 > MAX_LEVEL) {
+                    throw new BadRequestException("Hệ thống chỉ hỗ trợ danh mục tối đa 3 cấp!");
+                }
                 category.setParent(newParent);
-                category.setLevel(newParent.getLevel() + 1);
+                updateLevelRecursively(category, newLevel);
             }
         }
 
@@ -140,9 +145,9 @@ public class CategoryServiceImpl implements CategoryService {
         if (categoryRepository.existsByParentId(id)) {
             throw new BadRequestException("Không thể xóa danh mục này vì nó đang chứa các danh mục con! Vui lòng xóa hoặc di chuyển danh mục con trước.");
         }
-        // if (productRepository.existsByCategoryId(id)) {
-        //     throw new BadRequestException("Không thể xóa danh mục đang có sản phẩm!");
-        // }
+        if (productRepository.existsByCategory_Id(id)) {
+            throw new BadRequestException("Không thể xóa danh mục đang có sản phẩm!");
+        }
         categoryRepository.delete(category);
     }
 
@@ -158,7 +163,27 @@ public class CategoryServiceImpl implements CategoryService {
                 .children(new ArrayList<>())
                 .build();
     }
-    public boolean isDescendant(Category current, Category target) {
+    /** Number of levels in the subtree rooted at {@code category} (a leaf has height 1). */
+    private int subtreeHeight(Category category) {
+        int maxChildHeight = 0;
+        if (category.getChildren() != null) {
+            for (Category child : category.getChildren()) {
+                maxChildHeight = Math.max(maxChildHeight, subtreeHeight(child));
+            }
+        }
+        return maxChildHeight + 1;
+    }
+
+    private void updateLevelRecursively(Category category, int level) {
+        category.setLevel(level);
+        if (category.getChildren() != null) {
+            for (Category child : category.getChildren()) {
+                updateLevelRecursively(child, level + 1);
+            }
+        }
+    }
+
+    private boolean isDescendant(Category current, Category target) {
         Category checkNode = target;
         while (checkNode != null) {
             if (checkNode.getId().equals(current.getId())) {

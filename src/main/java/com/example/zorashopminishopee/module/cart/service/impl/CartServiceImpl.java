@@ -83,6 +83,9 @@ public class CartServiceImpl implements CartService {
 
         ProductVariant variant = productVariantRepository.findBySku(request.sku())
                 .orElseThrow(() -> new ResourceNotFoundException("Product variant not found with SKU: " + request.sku()));
+        if (!"ACTIVE".equals(variant.getProduct().getStatus())) {
+            throw new BadRequestException("Sản phẩm hiện không còn được bán!");
+        }
 
         Optional<CartItem> existingItemOpt = cartItemRepository
                 .findByCart_IdAndVariant_Id(cart.getId(), variant.getId());

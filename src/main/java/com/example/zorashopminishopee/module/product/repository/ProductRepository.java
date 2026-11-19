@@ -1,7 +1,5 @@
 package com.example.zorashopminishopee.module.product.repository;
 
-import com.example.zorashopminishopee.module.product.dto.response.ProductResponse;
-import com.example.zorashopminishopee.module.product.dto.response.ProductSummaryResponse;
 import com.example.zorashopminishopee.module.product.entity.Product;
 import com.example.zorashopminishopee.module.users.entity.Shops;
 import org.springframework.data.domain.Page;
@@ -19,11 +17,10 @@ import java.util.Optional;
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
     boolean existsBySlug(String slug);
+    boolean existsByCategory_Id(Long categoryId);
 
     Optional<Product> findBySlug(String slug);
 
-    Page<ProductResponse> findByShop_User_Email(String email,
-                                                Pageable pageable);
 
     Page<Product> findByShop(Shops shop, Pageable pageable);
     @Modifying

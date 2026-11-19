@@ -7,6 +7,7 @@ import com.example.zorashopminishopee.module.product.dto.response.InventoryLogRe
 import com.example.zorashopminishopee.module.product.entity.InventoryLog;
 import com.example.zorashopminishopee.module.product.service.InventoryLogService;
 import com.example.zorashopminishopee.module.product.service.InventoryService;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +29,7 @@ public class SellerInventoryController {
     public ResponseEntity<ApiResponse<Void>> updateStock(
             Authentication authentication,
             @PathVariable Long variantId,
-            @RequestParam int quantity
+            @RequestParam @Min(0) int quantity
     ) {
         inventoryService.updateStockApi(authentication.getName(), variantId, quantity);
         return ResponseEntity.ok(ApiResponse.success());

@@ -87,16 +87,7 @@ public class UserServiceImpl implements UserService {
         Users user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
-        return UserResponse.builder()
-                .fullName(user.getFullName())
-                .email(user.getEmail())
-                .phone(user.getPhone())
-                .avatarUrl(user.getAvatarUrl())
-                .isActive(user.getIsActive())
-                .role(user.getRole())
-                .dateOfBirth(user.getDateOfBirth())
-                .sex(user.getSex())
-                .build();
+        return mapToUserResponse(user);
     }
 
     @Override
@@ -106,16 +97,7 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw new ResourceNotFoundException("User not found with email: " + email);
         }
-        return UserResponse.builder()
-                .fullName(user.getFullName())
-                .email(user.getEmail())
-                .phone(user.getPhone())
-                .avatarUrl(user.getAvatarUrl())
-                .isActive(user.getIsActive())
-                .role(user.getRole())
-                .sex(user.getSex())
-                .dateOfBirth(user.getDateOfBirth())
-                .build();
+        return mapToUserResponse(user);
     }
 
     @Transactional
@@ -165,16 +147,7 @@ public class UserServiceImpl implements UserService {
         user.setDateOfBirth(request.getBirthDate());
         userRepository.save(user);
 
-        return UserResponse.builder()
-                .fullName(user.getFullName())
-                .email(user.getEmail())
-                .phone(user.getPhone())
-                .avatarUrl(user.getAvatarUrl())
-                .isActive(user.getIsActive())
-                .role(user.getRole())
-                .dateOfBirth(user.getDateOfBirth())
-                .sex(user.getSex())
-                .build();
+        return mapToUserResponse(user);
     }
 
     @Transactional
@@ -266,23 +239,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<UserResponse> getAllUsers(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         Page<Users> users = userRepository.findAll(pageable);
-        Page<UserResponse> userResponseList = users
-                .map(
-                        user ->  UserResponse.builder()
-                                .fullName(user.getFullName())
-                                .email(user.getEmail())
-                                .phone(user.getPhone())
-                                .avatarUrl(user.getAvatarUrl())
-                                .isActive(user.getIsActive())
-                                .role(user.getRole())
-                                .sex(user.getSex())
-                                .dateOfBirth(user.getDateOfBirth())
-                                .build()
-                );
-        return userResponseList;
+        return users.map(this::mapToUserResponse);
     }
 
     @Override
@@ -294,14 +255,7 @@ public class UserServiceImpl implements UserService {
         }
         user.setIsActive(!user.getIsActive());
         refreshTokenRepository.revokeAllJti(user);
-        return UserResponse.builder()
-                .fullName(user.getFullName())
-                .email(user.getEmail())
-                .phone(user.getPhone())
-                .avatarUrl(user.getAvatarUrl())
-                .isActive(user.getIsActive())
-                .role(user.getRole())
-                .build();
+        return mapToUserResponse(user);
     }
 
     @Override
@@ -330,5 +284,18 @@ public class UserServiceImpl implements UserService {
         Instant cutoff = Instant.now().minus(cleanupRetention);
         int countDelete = refreshTokenRepository.deleteExpiredBefore(cutoff);
         log.info("Deleted {} expired refresh tokens", countDelete);
+    }
+
+    private UserResponse mapToUserResponse(Users user) {
+        return UserResponse.builder()
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .avatarUrl(user.getAvatarUrl())
+                .isActive(user.getIsActive())
+                .role(user.getRole())
+                .sex(user.getSex())
+                .dateOfBirth(user.getDateOfBirth())
+                .build();
     }
 }

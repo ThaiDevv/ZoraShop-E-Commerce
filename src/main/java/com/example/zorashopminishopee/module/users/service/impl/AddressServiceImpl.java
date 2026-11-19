@@ -3,6 +3,7 @@ package com.example.zorashopminishopee.module.users.service.impl;
 import com.example.zorashopminishopee.common.exception.AddressLimitExceededException;
 import com.example.zorashopminishopee.common.exception.ResourceNotFoundException;
 import com.example.zorashopminishopee.module.users.dto.request.CreateAddressRequest;
+import com.example.zorashopminishopee.module.users.dto.request.UpdateAddressRequest;
 import com.example.zorashopminishopee.module.users.dto.response.AddressResponse;
 import com.example.zorashopminishopee.module.users.entity.Address;
 import com.example.zorashopminishopee.module.users.entity.Users;
@@ -67,7 +68,7 @@ public class AddressServiceImpl implements AddressService {
 
     @Transactional
     @Override
-    public AddressResponse updateAddress(String email, Long addressId, CreateAddressRequest request) {
+    public AddressResponse updateAddress(String email, Long addressId, UpdateAddressRequest request) {
         Address address = addressRepository.findByIdAndUserEmail(addressId, email)
                 .orElseThrow(() -> new ResourceNotFoundException("Address not found"));
 

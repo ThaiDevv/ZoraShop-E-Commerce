@@ -1,5 +1,6 @@
 package com.example.zorashopminishopee.module.product.service.impl;
 
+import com.example.zorashopminishopee.common.exception.BadRequestException;
 import com.example.zorashopminishopee.common.exception.ForbiddenException;
 import com.example.zorashopminishopee.common.exception.InsufficientStockException;
 import com.example.zorashopminishopee.common.exception.ResourceNotFoundException;
@@ -68,6 +69,13 @@ public class InventoryServiceImpl implements InventoryService {
             return;
         }
 
+        if (quantity < 0) {
+            throw new BadRequestException("Số lượng tồn kho không được âm!");
+        }
+        if (quantity < inventory.getReserved()) {
+            throw new BadRequestException("Số lượng tồn kho (" + quantity + ") không được nhỏ hơn số lượng đang tạm giữ cho đơn hàng ("
+                    + inventory.getReserved() + ")!");
+        }
         int oldQuantity = inventory.getQuantity();
         int delta = quantity - oldQuantity;
         if (delta == 0) {
@@ -79,7 +87,7 @@ public class InventoryServiceImpl implements InventoryService {
                 : "Giảm số lượng hàng tồn kho: " + Math.abs(delta);
         inventory.setQuantity(quantity);
         inventoryRepository.save(inventory);
-        productVariant.setStock(quantity);
+        productVariant.setStock(quantity - inventory.getReserved());
         productVariantRepository.save(productVariant);
         InventoryLog log = InventoryLog.builder()
                 .inventory(inventory)
@@ -109,6 +117,10 @@ public class InventoryServiceImpl implements InventoryService {
     @Transactional
     public void checkStockFromCartItem(List<CartItem> cartItems) {
         for (CartItem cartItem : cartItems) {
+            if (!"ACTIVE".equals(cartItem.getVariant().getProduct().getStatus())) {
+                throw new BadRequestException("Sản phẩm \"" + cartItem.getVariant().getProduct().getName()
+                        + "\" hiện không còn được bán!");
+            }
             if(cartItem.getVariant().getInventory() == null) {
                 cartItem.getVariant().setInventory(
                         createInventory(cartItem.getVariant(),cartItem.getVariant().getStock())

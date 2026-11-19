@@ -2,6 +2,7 @@ package com.example.zorashopminishopee.module.catagory.controller;
 
 import com.example.zorashopminishopee.common.dto.ApiResponse;
 import com.example.zorashopminishopee.module.catagory.dto.request.CreateCategoryRequest;
+import com.example.zorashopminishopee.module.catagory.dto.request.UpdateCategoryRequest;
 import com.example.zorashopminishopee.module.catagory.dto.response.CategoryResponse;
 import com.example.zorashopminishopee.module.catagory.service.CategoryService;
 import jakarta.validation.Valid;
@@ -24,8 +25,8 @@ public class AdminCategoryController {
     }
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<CategoryResponse>> updateCategory(@PathVariable Long id
-            ,@Valid @RequestBody CreateCategoryRequest createCategoryRequest) {
-        CategoryResponse newCategory = categoryService.updateCategory(id, createCategoryRequest);
+            ,@Valid @RequestBody UpdateCategoryRequest updateCategoryRequest) {
+        CategoryResponse newCategory = categoryService.updateCategory(id, updateCategoryRequest);
         return ResponseEntity.ok(ApiResponse.success(newCategory));
     }
     @DeleteMapping("/{id}")

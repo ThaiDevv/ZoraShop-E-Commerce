@@ -2,6 +2,7 @@ package com.example.zorashopminishopee.module.users.controller;
 
 import com.example.zorashopminishopee.common.dto.ApiResponse;
 import com.example.zorashopminishopee.module.users.dto.request.CreateAddressRequest;
+import com.example.zorashopminishopee.module.users.dto.request.UpdateAddressRequest;
 import com.example.zorashopminishopee.module.users.dto.response.AddressResponse;
 import com.example.zorashopminishopee.module.users.service.AddressService;
 import jakarta.validation.Valid;
@@ -38,7 +39,7 @@ public class AddressController {
     public ResponseEntity<ApiResponse<AddressResponse>> updateAddress(
             Authentication authentication,
             @PathVariable Long addressId,
-            @Valid @RequestBody CreateAddressRequest request
+            @Valid @RequestBody UpdateAddressRequest request
     ) {
         AddressResponse address = addressService.updateAddress(authentication.getName(), addressId, request);
         return ResponseEntity.ok(ApiResponse.success(address));

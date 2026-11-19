@@ -1,9 +1,10 @@
 package com.example.zorashopminishopee.module.users.service.impl;
 
 import com.example.zorashopminishopee.common.exception.DuplicateResourceException;
+import com.example.zorashopminishopee.common.exception.ForbiddenException;
 import com.example.zorashopminishopee.common.exception.ResourceNotFoundException;
 import com.example.zorashopminishopee.module.users.dto.request.CreateShopRequest;
-import com.example.zorashopminishopee.module.users.dto.request.UpdateShopRequire;
+import com.example.zorashopminishopee.module.users.dto.request.UpdateShopRequest;
 import com.example.zorashopminishopee.module.users.dto.response.ShopResponse;
 import com.example.zorashopminishopee.module.users.entity.Shops;
 import com.example.zorashopminishopee.module.users.entity.Users;
@@ -11,7 +12,7 @@ import com.example.zorashopminishopee.module.users.enums.UserRole;
 import com.example.zorashopminishopee.module.users.repository.ShopRepository;
 import com.example.zorashopminishopee.module.users.repository.UserRepository;
 import com.example.zorashopminishopee.module.users.service.ShopService;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -44,38 +45,19 @@ public class ShopServiceImpl implements ShopService {
                 .build();
         user.setShops(shops);
         shopRepository.save(shops);
-        return new ShopResponse(
-                shops.getId(),
-                shops.getName(),
-                shops.getDescription(),
-                shops.getLogoUrl(),
-                shops.getBannerUrl(),
-                shops.getRating(),
-                shops.getTotalProducts(),
-                shops.getTotalFollowers(),
-                shops.getIsActive()
-        );
+        return mapToResponse(shops);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ShopResponse getShop(Long id) {
         Shops shops = shopRepository.findById(id).orElseThrow(
                 () -> new ResourceNotFoundException("Shop not found"));
-        return new ShopResponse(
-                shops.getId(),
-                shops.getName(),
-                shops.getDescription(),
-                shops.getLogoUrl(),
-                shops.getBannerUrl(),
-                shops.getRating(),
-                shops.getTotalProducts(),
-                shops.getTotalFollowers(),
-                shops.getIsActive()
-        );
+        return mapToResponse(shops);
     }
     @Transactional
     @Override
-    public ShopResponse updateShop(String email, Long id, UpdateShopRequire require) {
+    public ShopResponse updateShop(String email, Long id, UpdateShopRequest require) {
         Users user = userRepository.findByEmail(email);
         if (user == null) {
             throw new ResourceNotFoundException("User not found");
@@ -83,6 +65,9 @@ public class ShopServiceImpl implements ShopService {
         Shops shops = user.getShops();
         if (shops == null) {
             throw new ResourceNotFoundException("Shop not found");
+        }
+        if (!shops.getId().equals(id)) {
+            throw new ForbiddenException("You can only update your own shop");
         }
         if(require.name() != null && !require.name().isEmpty()) {
             shops.setName(require.name());
@@ -96,6 +81,11 @@ public class ShopServiceImpl implements ShopService {
         if(require.bannerUrl() != null && !require.bannerUrl().isEmpty()) {
             shops.setBannerUrl(require.bannerUrl());
         }
+        return mapToResponse(shops);
+    }
+
+
+    private ShopResponse mapToResponse(Shops shops) {
         return new ShopResponse(
                 shops.getId(),
                 shops.getName(),
@@ -108,5 +98,4 @@ public class ShopServiceImpl implements ShopService {
                 shops.getIsActive()
         );
     }
-
 }

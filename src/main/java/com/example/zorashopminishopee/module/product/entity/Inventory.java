@@ -3,7 +3,8 @@ package com.example.zorashopminishopee.module.product.entity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
@@ -11,7 +12,8 @@ import java.util.List;
 @Entity
 @Table(name = "inventory")
 @Builder
-@Data
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 public class Inventory {

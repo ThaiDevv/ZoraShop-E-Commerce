@@ -3,7 +3,7 @@ package com.example.zorashopminishopee.module.users.entity;
 import com.example.zorashopminishopee.common.base.BaseEntity;
 import com.example.zorashopminishopee.module.cart.entity.Cart;
 import com.example.zorashopminishopee.module.oder.entity.Order;
-import com.example.zorashopminishopee.module.oder.enums.Sex;
+import com.example.zorashopminishopee.module.users.enums.Sex;
 import com.example.zorashopminishopee.module.review.entity.ReviewItem;
 import com.example.zorashopminishopee.module.users.enums.UserRole;
 import jakarta.persistence.*;
