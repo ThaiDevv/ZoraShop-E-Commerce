@@ -9,7 +9,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -39,14 +38,13 @@ public class SecurityConfig {
                 "/api/v1/auth/register",
                 "/api/v1/auth/login",
                 "/api/v1/categories/**",
-                "/api/v1/shops/**",
                 "/v3/api-docs/**",
                 "/swagger-ui/**",
                 "/api/v1/auth/refresh-token",
                 "/api/v1/auth/logout",
                 "/swagger-ui.html"
         ).permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/products/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/products/**", "/api/v1/shops/**").permitAll()
                 .anyRequest().authenticated());
         http.csrf(AbstractHttpConfigurer :: disable);
         http.sessionManagement(session -> session.sessionCreationPolicy(

@@ -30,6 +30,7 @@ public class ApiResponse<T> {
                 .success(true)
                 .message("Operation successful")
                 .body(null)
+                .timestamp(LocalDateTime.now())
                 .build();
     }
     public static <T> ApiResponse<T> success(T data) {
@@ -37,6 +38,7 @@ public class ApiResponse<T> {
                 .success(true)
                 .message("Operation successful")
                 .body(data)
+                .timestamp(LocalDateTime.now())
                 .build();
     }
     public static <T> ApiResponse<T> error (T body, String message) {
